@@ -54,52 +54,49 @@ CENTRO_LAT=-25.27 CENTRO_LNG=-57.62 ADMIN_TOKEN=prueba python3 server.py
 
 ## Despliegue (nginx + systemd)
 
-Pensado para un Ubuntu con nginx y certbot. En `despliegue/` están el servicio
-de systemd y el sitio de nginx, listos para copiar. Corre como `www-data` en
+Pensado para un Ubuntu con nginx, certbot y git. En `despliegue/` están el
+servicio de systemd y el sitio de nginx. La app corre como `www-data` en
 `127.0.0.1:8101` y guarda la base en `/var/lib/mapa-cauce/puntos.db`.
 
-**1. DNS.** Crear el registro `A cauces → <IP del servidor>` (sin proxy de
-Cloudflare, para que el servidor vea la IP real de cada persona).
+**1. DNS.** Crear el registro `cauce` (A a la IP del servidor, o CNAME a
+`muci.org`) **sin el proxy de Cloudflare**, para que el servidor vea la IP real
+de cada persona.
 
-**2. Subir el código** desde la máquina de quien despliega:
-
-```bash
-tar czf /tmp/mapa-cauce.tgz --exclude='*.db*' --exclude=__pycache__ server.py static despliegue
-scp /tmp/mapa-cauce.tgz root@SERVIDOR:/tmp/
-```
-
-**3. En el servidor, como root:**
+**2. En el servidor, como root:**
 
 ```bash
-# Código (de root, solo lectura para www-data)
-mkdir -p /var/www/areas/global/mapa-cauce
-tar xzf /tmp/mapa-cauce.tgz -C /var/www/areas/global/mapa-cauce
+# Código (el repo es público: no hacen falta credenciales)
+git clone https://github.com/carlvallory/mapa-cauce.git /var/www/areas/global/mapa-cauce
 cd /var/www/areas/global/mapa-cauce
 
-# Clave para borrar puntos (guardarla también en el gestor de contraseñas)
+# Clave para borrar puntos. Guardarla en el gestor de contraseñas.
 echo "ADMIN_TOKEN=$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')" > .env
 chown root:www-data .env && chmod 640 .env
+cat .env
 
 # Servicio
 cp despliegue/mapa-cauce.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now mapa-cauce
-curl -s http://127.0.0.1:8101/api/config     # debe responder el centro y el radio
+curl -s http://127.0.0.1:8101/api/config   # debe mostrar el centro y "radio": 750.0
 
 # Certificado y nginx
-certbot certonly --nginx -d cauces.muci.org
-cp despliegue/cauces.muci.org.nginx /etc/nginx/sites-available/cauces.muci.org
-ln -s /etc/nginx/sites-available/cauces.muci.org /etc/nginx/sites-enabled/
+certbot certonly --nginx -d cauce.muci.org
+cp despliegue/cauce.muci.org.nginx /etc/nginx/sites-available/cauce.muci.org
+ln -s /etc/nginx/sites-available/cauce.muci.org /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 ```
 
-**4. Probar** `https://cauces.muci.org` desde un teléfono con datos móviles.
+**3. Probar** `https://cauce.muci.org` desde un teléfono con datos móviles.
 
-**Actualizar** más adelante: repetir el paso 2, en el servidor `tar xzf` sobre
-la misma carpeta y `systemctl restart mapa-cauce`. La base no se toca.
+**Actualizar** más adelante (la base de datos no se toca):
+
+```bash
+cd /var/www/areas/global/mapa-cauce && git pull && systemctl restart mapa-cauce
+```
 
 ## Borrar puntos (moderación)
 
-Abrir una vez en el teléfono `https://cauces.muci.org/#admin=LA_CLAVE` (la clave está en `.env`).
+Abrir una vez en el teléfono `https://cauce.muci.org/#admin=LA_CLAVE` (la clave está en `.env`).
 Va después de `#` a propósito: esa parte de la dirección no viaja al servidor,
 así que la clave no queda en ningún log. La clave queda
 guardada en ese navegador y desde ahí cada punto muestra "Borrar este punto"

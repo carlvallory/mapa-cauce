@@ -85,3 +85,11 @@
 - Probado: el servidor acepta un punto a 720 m y rechaza uno a 780 m. La web
   muestra el círculo de 750 m y el PDF lo incluye completo, con pines del
   mismo tamaño.
+
+## 2026-10-29 — Subdominio cauce.muci.org y guía de instalación
+
+- El DNS se creó como `cauce.muci.org` (CNAME a muci.org, sin proxy de
+  Cloudflare). Se adaptaron el sitio de nginx (`despliegue/cauce.muci.org.nginx`),
+  el README y el HANDOFF a ese nombre.
+- La guía instala con `git clone` del repo público en vez de subir un tar, y
+  actualiza con `git pull`.
