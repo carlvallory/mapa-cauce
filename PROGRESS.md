@@ -110,3 +110,13 @@
   sitio de origen, que OSM exige. Se corrigió en el código (`referrerPolicy`
   en las capas de Leaflet y en los tiles del PDF) y en la plantilla de nginx.
   Probado en local con la misma política estricta: el mapa carga.
+
+## 2026-10-29 — En producción, base vacía
+
+- Carlos actualizó el servidor con `git pull` y la nueva plantilla de nginx:
+  el mapa carga (verificado que la página y el encabezado tienen la política
+  corregida).
+- Borró los puntos de prueba reiniciando la base, así la numeración empieza en
+  1. Él mismo confirmó que quedó vacía.
+- La web queda lista en https://cauces.muci.org para compartir con los
+  referentes.

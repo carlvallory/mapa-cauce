@@ -2,31 +2,25 @@
 
 ## Estado actual (2026-10-29)
 
-La web está completa y probada en local, pero **no está desplegada**.
+**En producción: https://cauces.muci.org** — instalada, probada y con la base
+vacía, lista para compartir con los referentes.
 
+- Servidor: servicio `mapa-cauce` (systemd, www-data, 127.0.0.1:8101), código
+  en `/var/www/areas/global/mapa-cauce` (clon del repo), base en
+  `/var/lib/mapa-cauce/puntos.db`, clave de borrado en `.env` de esa carpeta.
+  Certificado de Let's Encrypt hasta 2027-01-27 (renovación de certbot).
 - Repo público: https://github.com/carlvallory/mapa-cauce (rama `main`).
-  No subir datos personales ni detalles internos del servidor: es público.
-- Subdominio: **`cauces.muci.org`**. El 2026-10-29 el DNS se creó primero como
-  `cauce` y Carlos lo cambió a `cauces`; si `cauce` sigue en Cloudflare, se puede borrar. Puerto
-  local 8101, código en `/var/www/areas/global/mapa-cauce`, base en
-  `/var/lib/mapa-cauce/`. Lo instala una persona con root (README, paso 2).
-
-- Código: `server.py` (Python sin dependencias + SQLite) y `static/index.html`.
-- Despliegue: `README.md` (systemd + nginx).
-- Los puntos están numerados: el número aparece en el pin del mapa, en el
-  popup, en la lista y en la planilla CSV/GeoJSON. Es el id de la base y no
-  cambia aunque se borren otros puntos.
-- Hay campo opcional de cauce (Perú / Antequera), además del tipo de
-  obstrucción y la descripción.
-- **PDF para la Municipalidad:** botón en "Ver puntos". Genera en el navegador
-  un A4 con el mapa y los puntos numerados (página 1) y una tabla con número,
-  cauce, tipo, descripción, coordenadas enlazadas a Google Maps y fecha
-  (página 2 en adelante). Usa Poppins embebida y la paleta del MuCi, y respeta
-  la capa elegida en pantalla (calles o satélite).
-- Centro: **-25.277576, -57.619978** (la obra). Ya es el
-  valor por defecto en `server.py`.
-- Radio: **750 m** (se amplió desde 500 m, luego 700 m, el 2026-10-29). El PDF ajusta solo el
-  tamaño del mapa al radio.
+  No subir datos personales ni detalles internos del servidor.
+- Actualizar: `cd /var/www/areas/global/mapa-cauce && git pull` (los archivos
+  de la página se sirven al momento; reiniciar el servicio solo si cambia
+  `server.py`). Si cambian los archivos de `despliegue/`, copiarlos a
+  `/etc/...` y recargar.
+- Funciones: puntos numerados (el número no cambia nunca), cauce Perú /
+  Antequera, tipo y descripción opcionales, lista, CSV, GeoJSON y PDF para la
+  Municipalidad. Radio de **750 m**, centro -25.277576, -57.619978.
+- Modo administrador: abrir una vez `https://cauces.muci.org/#admin=CLAVE`.
+- Para empezar de cero (y que la numeración vuelva a 1): parar el servicio,
+  borrar `puntos.db*` en `/var/lib/mapa-cauce/` y arrancarlo.
 
 ## Contexto del pedido
 
@@ -34,12 +28,11 @@ El pedido viene del equipo del MuCi (2026-10-29). Los referentes del barrio teme
 la limpieza de los cauces **Perú** y **Antequera**, que lindan con la obra. Ellos
 marcan los puntos críticos prioritarios y el mapa se envía a la Municipalidad.
 
-## Qué falta
+## Qué sigue
 
-1. **Desplegar en producción** en `cauces.muci.org` siguiendo el README
-   (paso 2, con `git clone` del repo público). Los archivos están en `despliegue/`; puerto 8101.
-2. Probar en un teléfono real con HTTPS, incluida la descarga del PDF
-   (en iPhone el PDF se abre en el visor y se guarda desde "Compartir").
+1. Compartir el enlace con los referentes para que carguen los puntos.
+2. Cuando terminen, descargar el PDF desde "Ver puntos" y enviarlo a la
+   Municipalidad.
 
 ## Ideas no pedidas (solo si las piden)
 
