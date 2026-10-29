@@ -93,3 +93,5 @@
   el README y el HANDOFF a ese nombre.
 - La guía instala con `git clone` del repo público en vez de subir un tar, y
   actualiza con `git pull`.
+- Carlos prefirió `cauces.muci.org`: se volvió a ese nombre (nginx, README,
+  HANDOFF) y se mantiene la guía con `git clone`.

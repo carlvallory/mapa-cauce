@@ -6,8 +6,8 @@ La web está completa y probada en local, pero **no está desplegada**.
 
 - Repo público: https://github.com/carlvallory/mapa-cauce (rama `main`).
   No subir datos personales ni detalles internos del servidor: es público.
-- Subdominio: **`cauce.muci.org`** (DNS creado el 2026-10-29: CNAME a muci.org,
-  sin proxy de Cloudflare). Puerto
+- Subdominio: **`cauces.muci.org`**. El 2026-10-29 el DNS se creó primero como
+  `cauce` y Carlos lo cambió a `cauces`; si `cauce` sigue en Cloudflare, se puede borrar. Puerto
   local 8101, código en `/var/www/areas/global/mapa-cauce`, base en
   `/var/lib/mapa-cauce/`. Lo instala una persona con root (README, paso 2).
 
@@ -36,7 +36,7 @@ marcan los puntos críticos prioritarios y el mapa se envía a la Municipalidad.
 
 ## Qué falta
 
-1. **Desplegar en producción** en `cauce.muci.org` siguiendo el README
+1. **Desplegar en producción** en `cauces.muci.org` siguiendo el README
    (paso 2, con `git clone` del repo público). Los archivos están en `despliegue/`; puerto 8101.
 2. Probar en un teléfono real con HTTPS, incluida la descarga del PDF
    (en iPhone el PDF se abre en el visor y se guarda desde "Compartir").

@@ -58,7 +58,7 @@ Pensado para un Ubuntu con nginx, certbot y git. En `despliegue/` están el
 servicio de systemd y el sitio de nginx. La app corre como `www-data` en
 `127.0.0.1:8101` y guarda la base en `/var/lib/mapa-cauce/puntos.db`.
 
-**1. DNS.** Crear el registro `cauce` (A a la IP del servidor, o CNAME a
+**1. DNS.** Crear el registro `cauces` (A a la IP del servidor, o CNAME a
 `muci.org`) **sin el proxy de Cloudflare**, para que el servidor vea la IP real
 de cada persona.
 
@@ -80,13 +80,13 @@ systemctl daemon-reload && systemctl enable --now mapa-cauce
 curl -s http://127.0.0.1:8101/api/config   # debe mostrar el centro y "radio": 750.0
 
 # Certificado y nginx
-certbot certonly --nginx -d cauce.muci.org
-cp despliegue/cauce.muci.org.nginx /etc/nginx/sites-available/cauce.muci.org
-ln -s /etc/nginx/sites-available/cauce.muci.org /etc/nginx/sites-enabled/
+certbot certonly --nginx -d cauces.muci.org
+cp despliegue/cauces.muci.org.nginx /etc/nginx/sites-available/cauces.muci.org
+ln -s /etc/nginx/sites-available/cauces.muci.org /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 ```
 
-**3. Probar** `https://cauce.muci.org` desde un teléfono con datos móviles.
+**3. Probar** `https://cauces.muci.org` desde un teléfono con datos móviles.
 
 **Actualizar** más adelante (la base de datos no se toca):
 
@@ -96,7 +96,7 @@ cd /var/www/areas/global/mapa-cauce && git pull && systemctl restart mapa-cauce
 
 ## Borrar puntos (moderación)
 
-Abrir una vez en el teléfono `https://cauce.muci.org/#admin=LA_CLAVE` (la clave está en `.env`).
+Abrir una vez en el teléfono `https://cauces.muci.org/#admin=LA_CLAVE` (la clave está en `.env`).
 Va después de `#` a propósito: esa parte de la dirección no viaja al servidor,
 así que la clave no queda en ningún log. La clave queda
 guardada en ese navegador y desde ahí cada punto muestra "Borrar este punto"
