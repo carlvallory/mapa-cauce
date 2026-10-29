@@ -6,11 +6,13 @@ Sirve la página de static/ y una API JSON que guarda los puntos en SQLite.
 Pensado para correr detrás de un proxy inverso (nginx) que ponga HTTPS.
 """
 import csv
+import hashlib
 import hmac
 import io
 import json
 import math
 import os
+import secrets
 import sqlite3
 import threading
 import time
@@ -72,6 +74,13 @@ def iniciar_db():
         columnas = {f[1] for f in con.execute("PRAGMA table_info(puntos)")}
         if "cauce" not in columnas:
             con.execute("ALTER TABLE puntos ADD COLUMN cauce TEXT NOT NULL DEFAULT ''")
+        if "clave_hash" not in columnas:
+            # Hash de la clave que recibe quien marcó el punto, para que pueda borrarlo.
+            con.execute("ALTER TABLE puntos ADD COLUMN clave_hash TEXT NOT NULL DEFAULT ''")
+
+
+def hash_clave(clave):
+    return hashlib.sha256(clave.encode("utf-8")).hexdigest()
 
 
 def celda_segura(texto):
@@ -221,26 +230,36 @@ class Handler(BaseHTTPRequestHandler):
         if not limitador.permitir(self.ip()):
             return self.error(429, "Se cargaron muchos puntos seguidos desde esta conexión. Probá de nuevo en un rato.")
         creado = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        # La clave viaja una sola vez, en esta respuesta; en la base queda solo su hash.
+        clave = secrets.token_urlsafe(18)
         with conectar() as con:
-            cur = con.execute("INSERT INTO puntos (lat, lng, cauce, tipo, descripcion, creado) VALUES (?, ?, ?, ?, ?, ?)",
-                              (round(lat, 7), round(lng, 7), cauce, tipo, descripcion[:MAX_DESC], creado))
+            cur = con.execute("INSERT INTO puntos (lat, lng, cauce, tipo, descripcion, creado, clave_hash) "
+                              "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                              (round(lat, 7), round(lng, 7), cauce, tipo, descripcion[:MAX_DESC], creado,
+                               hash_clave(clave)))
             nuevo = dict(con.execute("SELECT id, lat, lng, cauce, tipo, descripcion, creado FROM puntos WHERE id = ?",
                                      (cur.lastrowid,)).fetchone())
+        nuevo["clave"] = clave
         self.enviar(201, nuevo)
 
-    # --- DELETE: solo con token de administración -------------------------
+    # --- DELETE: quien marcó el punto (con su clave) o administración --------
 
     def do_DELETE(self):
         partes = urlparse(self.path).path.strip("/").split("/")
         if len(partes) != 3 or partes[:2] != ["api", "puntos"] or not partes[2].isdigit():
             return self.error(404, "No encontrado")
+        id_punto = int(partes[2])
         token = self.headers.get("X-Admin-Token", "")
-        if not ADMIN_TOKEN or not hmac.compare_digest(token, ADMIN_TOKEN):
-            return self.error(403, "No tenés permiso para borrar puntos.")
+        clave = self.headers.get("X-Clave-Punto", "")
         with conectar() as con:
-            borrados = con.execute("DELETE FROM puntos WHERE id = ?", (int(partes[2]),)).rowcount
-        if not borrados:
-            return self.error(404, "Ese punto ya no existe.")
+            fila = con.execute("SELECT clave_hash FROM puntos WHERE id = ?", (id_punto,)).fetchone()
+            if not fila:
+                return self.error(404, "Ese punto ya no existe.")
+            es_admin = bool(ADMIN_TOKEN) and hmac.compare_digest(token, ADMIN_TOKEN)
+            es_autor = bool(clave) and bool(fila["clave_hash"]) and hmac.compare_digest(hash_clave(clave), fila["clave_hash"])
+            if not (es_admin or es_autor):
+                return self.error(403, "Solo se puede borrar un punto desde el teléfono que lo marcó.")
+            con.execute("DELETE FROM puntos WHERE id = ?", (id_punto,))
         self.enviar(200, {"ok": True})
 
 

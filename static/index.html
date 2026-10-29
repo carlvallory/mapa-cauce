@@ -170,7 +170,7 @@ textarea:focus { border-color: var(--violeta); outline: none; }
 
 /* Lista de puntos */
 .lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.lista li { border-top: 1px solid var(--linea); }
+.lista li { border-top: 1px solid var(--linea); display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px; }
 .lista li:first-child { border-top: 0; }
 .item {
   width: 100%; border: 0; background: none; text-align: left; padding: 14px 0;
@@ -185,6 +185,23 @@ textarea:focus { border-color: var(--violeta); outline: none; }
 .item .d.vacia { color: var(--suave); font-style: italic; }
 .item .f { font-size: 12px; color: var(--suave); }
 .item .ir { color: var(--violeta); font-size: 13px; font-weight: 600; align-self: center; }
+.btn-borrar {
+  border: 0; background: none; color: #b8401b; font-size: 13px; font-weight: 600;
+  padding: 10px 4px 10px 10px; min-height: 44px;
+}
+.popup-acciones { margin-top: 10px; }
+
+/* Ventana de confirmación */
+.confirmar-velo { position: fixed; inset: 0; z-index: 1400; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
+.confirmar {
+  background: #fff; border-radius: 20px; width: 100%; max-width: 380px; padding: 22px 20px 18px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.3); animation: subir .18s ease-out;
+}
+.confirmar h3 { margin: 0 0 6px; font-size: 19px; font-weight: 700; text-wrap: balance; }
+.confirmar p { margin: 0 0 6px; color: var(--suave); font-size: 14px; line-height: 1.45; }
+.confirmar .cita { color: var(--negro); background: var(--tinte); border-radius: 10px; padding: 8px 12px; margin: 10px 0 4px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.confirmar .pie { display: flex; gap: 10px; margin-top: 16px; }
+.btn-peligro { background: #c2410c; color: #fff; }
 .vacio { text-align: center; padding: 28px 8px; color: var(--suave); }
 .vacio b { display: block; color: var(--negro); font-size: 16px; margin-bottom: 4px; }
 .descargas { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -291,7 +308,7 @@ textarea:focus { border-color: var(--violeta); outline: none; }
 <!-- Hoja: lista -->
 <section class="hoja" id="hoja-lista" hidden aria-labelledby="titulo-lista">
   <h2 id="titulo-lista">Puntos marcados</h2>
-  <p class="sub" id="sub-lista">Tocá un punto para verlo en el mapa.</p>
+  <p class="sub" id="sub-lista">Tocá un punto para verlo en el mapa. Los que marcaste desde este teléfono se pueden borrar.</p>
   <div class="cuerpo">
     <ul class="lista" id="lista"></ul>
     <div class="vacio" id="lista-vacia" hidden>
@@ -315,6 +332,18 @@ textarea:focus { border-color: var(--violeta); outline: none; }
 
 <div class="aviso" id="aviso" role="status" hidden></div>
 
+<div class="confirmar-velo" id="confirmar-velo" hidden>
+  <div class="confirmar" role="alertdialog" aria-modal="true" aria-labelledby="confirmar-titulo" aria-describedby="confirmar-texto">
+    <h3 id="confirmar-titulo">¿Borrar el punto?</h3>
+    <p id="confirmar-texto">Se va a quitar del mapa para todos. No se puede deshacer.</p>
+    <p class="cita" id="confirmar-cita"></p>
+    <div class="pie">
+      <button class="btn btn-secundario" type="button" id="confirmar-no">Cancelar</button>
+      <button class="btn btn-peligro" type="button" id="confirmar-si">Sí, borrar</button>
+    </div>
+  </div>
+</div>
+
 <script src="vendor/leaflet.js"></script>
 <script src="pdf.js"></script>
 <script>
@@ -333,6 +362,18 @@ let ultimoNuevo = null;
 
 // Token de administración: se pasa una vez como #admin=TOKEN y queda guardado en este teléfono.
 // Va en el fragmento (#) porque el navegador nunca lo envía al servidor ni queda en los logs.
+// Claves de los puntos marcados desde este teléfono: permiten borrarlos.
+function misClaves() {
+  try { return JSON.parse(localStorage.getItem("misPuntos") || "{}"); } catch (e) { return {}; }
+}
+function guardarClave(id, clave) {
+  try { const m = misClaves(); m[id] = clave; localStorage.setItem("misPuntos", JSON.stringify(m)); } catch (e) { /* sin almacenamiento */ }
+}
+function olvidarClave(id) {
+  try { const m = misClaves(); delete m[id]; localStorage.setItem("misPuntos", JSON.stringify(m)); } catch (e) { /* sin almacenamiento */ }
+}
+function puedeBorrar(p) { return Boolean(adminToken || misClaves()[p.id]); }
+
 let adminToken = null;
 function leerAdmin() {
   try {
@@ -464,12 +505,12 @@ function contenidoPopup(p) {
   f.className = "popup-fecha";
   f.textContent = "Marcado el " + fecha(p.creado);
   div.append(f);
-  if (adminToken) {
+  if (puedeBorrar(p)) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "popup-borrar";
+    b.className = "popup-borrar popup-acciones";
     b.textContent = "Borrar este punto";
-    b.addEventListener("click", () => borrar(p, b));
+    b.addEventListener("click", () => pedirBorrar(p));
     div.append(b);
   }
   return div;
@@ -518,12 +559,22 @@ function dibujarLista() {
     ir.className = "ir";
     ir.textContent = "Ver";
     b.append(n, info, ir);
+    b.setAttribute("aria-label", `Ver el punto ${p.id} en el mapa`);
     b.addEventListener("click", () => {
       cerrarHojas();
       mapa.flyTo([p.lat, p.lng], 18, { duration: 0.6 });
       mapa.once("moveend", () => marcadores.get(p.id)?.openPopup());
     });
     li.append(b);
+    if (puedeBorrar(p)) {
+      const x = document.createElement("button");
+      x.type = "button";
+      x.className = "btn-borrar";
+      x.textContent = "Borrar";
+      x.setAttribute("aria-label", `Borrar el punto ${p.id}`);
+      x.addEventListener("click", () => pedirBorrar(p));
+      li.append(x);
+    }
     ul.append(li);
   }
 }
@@ -613,6 +664,8 @@ async function guardar(ev) {
         cauce: cauceElegido, tipo: tipoElegido, descripcion: $("descripcion").value.trim()
       })
     });
+    if (nuevo.clave) guardarClave(nuevo.id, nuevo.clave);
+    delete nuevo.clave;
     ultimoNuevo = nuevo.id;
     puntos = puntos.filter((p) => p.id !== nuevo.id).concat(nuevo);
     dibujarPuntos();
@@ -629,20 +682,48 @@ async function guardar(ev) {
   }
 }
 
-async function borrar(p, boton) {
-  if (boton.dataset.confirmar !== "1") {
-    boton.dataset.confirmar = "1";
-    boton.textContent = "Tocá de nuevo para confirmar";
-    return;
-  }
+let puntoABorrar = null;
+let focoAnterior = null;
+
+function pedirBorrar(p) {
+  puntoABorrar = p;
+  focoAnterior = document.activeElement;
+  $("confirmar-titulo").textContent = `¿Borrar el punto ${p.id}?`;
+  const cita = [CAUCES[p.cauce], TIPOS[p.tipo], p.descripcion].filter(Boolean).join(" · ");
+  $("confirmar-cita").textContent = cita || "Sin descripción";
+  $("confirmar-velo").hidden = false;
+  $("confirmar-no").focus();
+}
+
+function cerrarConfirmacion() {
+  $("confirmar-velo").hidden = true;
+  puntoABorrar = null;
+  focoAnterior?.focus?.();
+}
+
+async function borrarConfirmado() {
+  const p = puntoABorrar;
+  if (!p) return;
+  const boton = $("confirmar-si");
+  boton.disabled = true;
+  boton.textContent = "Borrando…";
+  const clave = misClaves()[p.id];
+  const headers = adminToken ? { "X-Admin-Token": adminToken } : {};
+  if (clave) headers["X-Clave-Punto"] = clave;
   try {
-    await api(`api/puntos/${p.id}`, { method: "DELETE", headers: { "X-Admin-Token": adminToken } });
+    await api(`api/puntos/${p.id}`, { method: "DELETE", headers });
+    olvidarClave(p.id);
     mapa.closePopup();
     puntos = puntos.filter((x) => x.id !== p.id);
     dibujarPuntos();
+    cerrarConfirmacion();
     avisar(`Punto ${p.id} borrado`);
   } catch (e) {
+    cerrarConfirmacion();
     avisar(e.message, true);
+  } finally {
+    boton.disabled = false;
+    boton.textContent = "Sí, borrar";
   }
 }
 
@@ -691,8 +772,15 @@ function conectarControles() {
   $("btn-lista").addEventListener("click", () => abrirHoja("hoja-lista"));
   $("btn-cerrar-lista").addEventListener("click", cerrarHojas);
   $("btn-pdf").addEventListener("click", descargarPDF);
+  $("confirmar-no").addEventListener("click", cerrarConfirmacion);
+  $("confirmar-si").addEventListener("click", borrarConfirmado);
+  $("confirmar-velo").addEventListener("click", (e) => { if (e.target === e.currentTarget) cerrarConfirmacion(); });
   $("velo").addEventListener("click", cerrarHojas);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarHojas(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!$("confirmar-velo").hidden) cerrarConfirmacion();
+    else cerrarHojas();
+  });
   for (const b of document.querySelectorAll("[data-tipo]")) {
     b.addEventListener("click", () => elegirTipo(b.dataset.tipo));
   }

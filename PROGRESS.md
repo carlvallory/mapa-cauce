@@ -120,3 +120,18 @@
   1. Él mismo confirmó que quedó vacía.
 - La web queda lista en https://cauces.muci.org para compartir con los
   referentes.
+
+## 2026-10-29 — Botón "Borrar" para quien marcó el punto
+
+- En "Ver puntos", al lado de "Ver", aparece "Borrar" en los puntos marcados
+  desde ese teléfono (y en todos, en modo administrador). Antes de borrar se
+  abre una ventana de confirmación con el número y la descripción del punto;
+  también se usa en el popup del mapa.
+- Al crear un punto, el servidor devuelve una clave que queda en el navegador
+  y guarda solo su hash (`clave_hash`, migración automática). Sin esa clave o
+  la de administración, el servidor rechaza el borrado: nadie puede borrar
+  puntos de otros.
+- Probado: API (sin clave, clave falsa, punto viejo sin clave, clave correcta,
+  administración) y en el navegador (botón solo en el punto propio, Cancelar no
+  borra, "Sí, borrar" borra, modo admin muestra el botón en todos).
+- Pendiente: subir a GitHub y desplegar (`git pull` + reinicio del servicio).

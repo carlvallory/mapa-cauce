@@ -26,8 +26,8 @@ planilla CSV y el GeoJSON.
 |---|---|---|
 | GET | `/api/config` | Centro y radio del área |
 | GET | `/api/puntos` | Lista de puntos (JSON) |
-| POST | `/api/puntos` | Crea un punto `{lat, lng, cauce?, tipo?, descripcion?}` (`cauce`: `peru` / `antequera`) |
-| DELETE | `/api/puntos/<id>` | Borra un punto (header `X-Admin-Token`) |
+| POST | `/api/puntos` | Crea un punto `{lat, lng, cauce?, tipo?, descripcion?}` (`cauce`: `peru` / `antequera`); responde con una `clave` para poder borrarlo |
+| DELETE | `/api/puntos/<id>` | Borra un punto (header `X-Clave-Punto` de quien lo marcó, o `X-Admin-Token`) |
 | GET | `/api/puntos.csv` | Planilla para Excel, con hora de Paraguay y enlace a Google Maps |
 | GET | `/api/puntos.geojson` | Los puntos en GeoJSON (QGIS, Google My Maps, etc.) |
 
@@ -94,13 +94,17 @@ nginx -t && systemctl reload nginx
 cd /var/www/areas/global/mapa-cauce && git pull && systemctl restart mapa-cauce
 ```
 
-## Borrar puntos (moderación)
+## Borrar puntos
 
-Abrir una vez en el teléfono `https://cauces.muci.org/#admin=LA_CLAVE` (la clave está en `.env`).
-Va después de `#` a propósito: esa parte de la dirección no viaja al servidor,
-así que la clave no queda en ningún log. La clave queda
-guardada en ese navegador y desde ahí cada punto muestra "Borrar este punto"
-(pide confirmar con un segundo toque).
+- **Quien marcó un punto** lo puede borrar desde el mismo teléfono: en "Ver
+  puntos" aparece "Borrar" al lado de "Ver", y una ventana pide confirmar. Al
+  guardar un punto, el servidor devuelve una clave que queda en ese navegador;
+  en la base solo se guarda su hash. Si se borran los datos del navegador, esa
+  persona ya no puede borrarlo (la administración sí).
+- **Administración** puede borrar cualquier punto. Abrir una vez en el teléfono
+  `https://cauces.muci.org/#admin=LA_CLAVE` (la clave está en `.env`). Va
+  después de `#` a propósito: esa parte de la dirección no viaja al servidor,
+  así que la clave no queda en ningún log.
 
 ## Numeración
 

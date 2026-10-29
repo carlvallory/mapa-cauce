@@ -18,7 +18,12 @@ vacía, lista para compartir con los referentes.
 - Funciones: puntos numerados (el número no cambia nunca), cauce Perú /
   Antequera, tipo y descripción opcionales, lista, CSV, GeoJSON y PDF para la
   Municipalidad. Radio de **750 m**, centro -25.277576, -57.619978.
-- Modo administrador: abrir una vez `https://cauces.muci.org/#admin=CLAVE`.
+- Borrar: quien marcó un punto puede borrarlo desde el mismo teléfono (botón
+  "Borrar" en la lista, con ventana de confirmación). El modo administrador
+  (`https://cauces.muci.org/#admin=CLAVE`) borra cualquiera.
+- **Pendiente de desplegar** (2026-10-29): el botón "Borrar" para quien marcó
+  el punto. Requiere `git pull` **y** `systemctl restart mapa-cauce`, porque
+  cambia `server.py` y la base suma la columna `clave_hash` al arrancar.
 - Para empezar de cero (y que la numeración vuelva a 1): parar el servicio,
   borrar `puntos.db*` en `/var/lib/mapa-cauce/` y arrancarlo.
 
