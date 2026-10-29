@@ -43,6 +43,7 @@
     return new Promise((ok) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
+      img.referrerPolicy = "strict-origin-when-cross-origin";  // OSM bloquea pedidos sin Referer
       img.onload = () => ok(img);
       img.onerror = () => ok(null);
       img.src = url;

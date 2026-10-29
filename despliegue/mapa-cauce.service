@@ -19,8 +19,9 @@ Environment=HOST=127.0.0.1
 Environment=PORT=8101
 Environment=DB_PATH=/var/lib/mapa-cauce/puntos.db
 # .env lleva ADMIN_TOKEN=... (clave para borrar puntos). systemd no admite
-# comillas ni espacios en ese archivo.
-EnvironmentFile=/var/www/areas/global/mapa-cauce/.env
+# comillas ni espacios en ese archivo. El "-" lo hace opcional: sin .env el
+# servicio arranca igual, solo que nadie puede borrar puntos.
+EnvironmentFile=-/var/www/areas/global/mapa-cauce/.env
 
 ExecStart=/usr/bin/python3 /var/www/areas/global/mapa-cauce/server.py
 Restart=on-failure

@@ -95,3 +95,18 @@
   actualiza con `git pull`.
 - Carlos prefirió `cauces.muci.org`: se volvió a ese nombre (nginx, README,
   HANDOFF) y se mantiene la guía con `git clone`.
+
+## 2026-10-29 — Instalado en cauces.muci.org y arreglo del mapa bloqueado
+
+- Instalado en producción: servicio `mapa-cauce` activo en 127.0.0.1:8101,
+  certificado de Let's Encrypt hasta 2027-01-27, nginx con redirección a
+  HTTPS y encabezados de seguridad. Verificado desde afuera: API, archivos,
+  CSV/GeoJSON, y que no se exponen `server.py`, `.env` ni `.git`.
+- Hubo un tropiezo en la instalación: el `.env` no se creó en el primer intento
+  y el servicio fallaba con "Failed to load environment files". Ahora el
+  servicio arranca aunque falte el `.env` (`EnvironmentFile=-`).
+- En producción, OpenStreetMap respondía "403 Access blocked" en todos los
+  tiles: la política `Referrer-Policy: same-origin` de nginx impedía enviar el
+  sitio de origen, que OSM exige. Se corrigió en el código (`referrerPolicy`
+  en las capas de Leaflet y en los tiles del PDF) y en la plantilla de nginx.
+  Probado en local con la misma política estricta: el mapa carga.

@@ -388,10 +388,15 @@ function iniciarMapa() {
   centro = L.latLng(cfg.centro.lat, cfg.centro.lng);
   mapa = L.map("mapa", { zoomControl: false, minZoom: 14, maxZoom: 19, attributionControl: true });
 
+  // OpenStreetMap exige que el navegador diga desde qué sitio se piden los mapas
+  // (Referer); sin eso responde "Access blocked". Se pide explícito por si el
+  // servidor pone una política de referrer más estricta para el resto.
   capaCalles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    referrerPolicy: "strict-origin-when-cross-origin",
     maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(mapa);
   capaSatelite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    referrerPolicy: "strict-origin-when-cross-origin",
     maxZoom: 19, attribution: "Imágenes &copy; Esri"
   });
 
