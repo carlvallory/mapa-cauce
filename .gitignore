@@ -1,0 +1,14 @@
+# Base de datos local
+puntos.db*
+*.db
+*.db-*
+
+# Secretos
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Herramientas
+.playwright-mcp/

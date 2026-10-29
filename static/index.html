@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mapa del Cauce</title>
+<meta name="description" content="Marcá los puntos donde los cauces Perú y Antequera están obstruidos alrededor de la obra del MuCi en la Costanera.">
+<meta name="theme-color" content="#6950A1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2C10 2 6 6.5 6 12c0 7.5 10 18 10 18s10-10.5 10-18C26 6.5 22 2 16 2Z%22 fill=%22%23F37043%22/%3E%3Ccircle cx=%2216%22 cy=%2212%22 r=%224%22 fill=%22%23fff%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<style>
+/* Mapa a pantalla completa; barra de marca arriba, acciones abajo, hojas que suben desde abajo. */
+:root {
+  --rosa: #F17DB1;
+  --verde: #00B26B;
+  --negro: #000000;
+  --violeta: #6950A1;
+  --naranja: #F37043;
+  --fondo: #ffffff;
+  --texto: #000000;
+  --suave: #5b5468;
+  --linea: #e7e2ef;
+  --tinte: #f5f1fa;
+  --font: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --lado-izq: max(16px, env(safe-area-inset-left, 0px));
+  --lado-der: max(16px, env(safe-area-inset-right, 0px));
+  --abajo: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { font-family: var(--font); font-size: 15px; color: var(--texto); background: var(--fondo); -webkit-font-smoothing: antialiased; }
+button, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--rosa); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+#mapa { position: fixed; inset: 0; background: var(--tinte); }
+.leaflet-container { font-family: var(--font); }
+
+/* Barra superior */
+.barra {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) var(--lado-der) 12px var(--lado-izq);
+  background: linear-gradient(120deg, var(--violeta) 0%, #8b5aa6 55%, var(--rosa) 100%);
+  color: #fff; display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.18);
+}
+.barra .textos { min-width: 0; flex: 1; }
+.barra h1 { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.2; letter-spacing: -.01em; }
+.barra p { margin: 2px 0 0; font-size: 12px; opacity: .92; line-height: 1.35; }
+.contador {
+  flex: none; text-align: center; background: rgba(255,255,255,.18); border-radius: 12px;
+  padding: 6px 10px; line-height: 1.1; font-variant-numeric: tabular-nums;
+}
+.contador b { display: block; font-size: 20px; font-weight: 700; }
+.contador span { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+
+/* Botones flotantes del mapa */
+.flotantes {
+  position: fixed; z-index: 900; right: var(--lado-der);
+  bottom: calc(var(--abajo) + 96px); display: flex; flex-direction: column; gap: 10px;
+}
+.redondo {
+  width: 46px; height: 46px; border-radius: 50%; border: 0; background: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,.22); display: grid; place-items: center; color: var(--violeta);
+}
+.redondo svg { width: 22px; height: 22px; }
+.redondo[aria-pressed="true"] { background: var(--violeta); color: #fff; }
+
+/* Barra de acciones inferior */
+.acciones {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000;
+  padding: 12px var(--lado-der) calc(var(--abajo) + 12px) var(--lado-izq);
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  background: linear-gradient(to top, rgba(255,255,255,.96) 70%, rgba(255,255,255,0));
+}
+.acciones .pista { flex-basis: 100%; margin: 0 0 2px; font-size: 13px; font-weight: 500; color: var(--negro); text-align: center; }
+.acciones .pista.mal { color: #b8401b; }
+.btn {
+  flex: 1; min-height: 52px; border-radius: 14px; border: 0; padding: 0 16px;
+  font-weight: 600; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn svg { width: 20px; height: 20px; flex: none; }
+.btn-primario { background: var(--verde); color: #fff; box-shadow: 0 4px 14px rgba(0,178,107,.35); }
+.btn-primario:disabled { background: #b9c9c1; box-shadow: none; cursor: not-allowed; }
+.btn-secundario { background: #fff; color: var(--violeta); border: 2px solid var(--violeta); }
+.btn-texto { background: transparent; color: var(--suave); flex: 0 0 auto; }
+
+/* Mira para ubicar el punto */
+.mira {
+  position: fixed; left: 50%; top: 50%; z-index: 800; pointer-events: none;
+  width: 56px; height: 56px; margin: -28px 0 0 -28px;
+}
+.mira::before, .mira::after { content: ""; position: absolute; background: var(--negro); }
+.mira::before { left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; }
+.mira::after { top: 50%; left: 0; right: 0; height: 2px; margin-top: -1px; }
+.mira span {
+  position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  border-radius: 50%; border: 3px solid var(--naranja); background: rgba(243,112,67,.25);
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* Marcadores */
+.punto-icono {
+  width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  background: var(--naranja); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  display: grid; place-items: center;
+}
+.punto-icono b {
+  transform: rotate(45deg); color: #fff; font-weight: 700; font-size: 13px; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.punto-icono b.largo { font-size: 10px; }
+.punto-icono.nuevo { animation: caer .45s ease-out; }
+@keyframes caer { from { transform: translateY(-18px) rotate(-45deg); opacity: 0; } }
+.obra-icono {
+  background: var(--violeta); color: #fff; font-weight: 700; font-size: 11px; white-space: nowrap;
+  padding: 4px 9px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3);
+  transform: translate(-50%, -50%); display: inline-block;
+}
+.leaflet-popup-content-wrapper { border-radius: 14px; }
+.leaflet-popup-content { margin: 14px 16px; font-size: 14px; line-height: 1.45; min-width: 200px; }
+.popup-num { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--negro); }
+.popup-desc { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.popup-desc.vacia { color: var(--suave); font-style: italic; }
+.popup-fecha { font-size: 12px; color: var(--suave); }
+.popup-borrar { margin-top: 10px; border: 0; background: none; color: #b8401b; font-weight: 600; padding: 0; font-size: 13px; }
+
+.chip {
+  display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  background: rgba(243,112,67,.14); color: #a8431f;
+}
+.chip.cauce { background: rgba(105,80,161,.12); color: var(--violeta); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+/* Hojas inferiores */
+.velo { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,.35); }
+.hoja {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 1200; background: #fff;
+  border-radius: 22px 22px 0 0; box-shadow: 0 -6px 30px rgba(0,0,0,.2);
+  max-height: 86%; display: flex; flex-direction: column;
+  padding: 10px var(--lado-der) calc(var(--abajo) + 16px) var(--lado-izq);
+  animation: subir .22s ease-out;
+}
+@keyframes subir { from { transform: translateY(40px); opacity: 0; } }
+.hoja::before { content: ""; width: 40px; height: 4px; border-radius: 2px; background: var(--linea); margin: 0 auto 12px; flex: none; }
+.hoja h2 { margin: 0 0 4px; font-size: 20px; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+.hoja .sub { margin: 0 0 14px; color: var(--suave); font-size: 13px; }
+.hoja .pie { display: flex; gap: 10px; margin-top: 16px; flex: none; }
+.cuerpo { overflow-y: auto; min-height: 0; flex: 1; }
+.etiqueta { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); margin: 0 0 8px; }
+.etiqueta small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.tipos { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; border: 0; padding: 0; }
+.tipos legend { padding: 0; }
+.tipo {
+  border: 2px solid var(--linea); background: #fff; border-radius: 999px; padding: 8px 14px;
+  font-size: 14px; font-weight: 500;
+}
+.tipo[aria-pressed="true"] { border-color: var(--naranja); background: rgba(243,112,67,.12); color: #8f3716; font-weight: 600; }
+.tipo[data-cauce][aria-pressed="true"] { border-color: var(--violeta); background: rgba(105,80,161,.12); color: var(--violeta); }
+textarea {
+  width: 100%; min-height: 96px; resize: vertical; border: 2px solid var(--linea); border-radius: 14px;
+  padding: 12px 14px; font-size: 16px; line-height: 1.45; background: #fff;
+}
+textarea:focus { border-color: var(--violeta); outline: none; }
+.conteo { text-align: right; font-size: 12px; color: var(--suave); margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+/* Lista de puntos */
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lista li { border-top: 1px solid var(--linea); }
+.lista li:first-child { border-top: 0; }
+.item {
+  width: 100%; border: 0; background: none; text-align: left; padding: 14px 0;
+  display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: start;
+}
+.item .n {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--naranja); color: #fff;
+  display: grid; place-items: center; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.item .info { min-width: 0; }
+.item .d { margin: 4px 0 2px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.item .d.vacia { color: var(--suave); font-style: italic; }
+.item .f { font-size: 12px; color: var(--suave); }
+.item .ir { color: var(--violeta); font-size: 13px; font-weight: 600; align-self: center; }
+.vacio { text-align: center; padding: 28px 8px; color: var(--suave); }
+.vacio b { display: block; color: var(--negro); font-size: 16px; margin-bottom: 4px; }
+.descargas { display: flex; gap: 10px; flex-wrap: wrap; }
+.descargas a {
+  flex: 1; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border-radius: 12px; background: var(--tinte); color: var(--violeta); font-weight: 600; text-decoration: none; font-size: 14px;
+}
+.descargas-nota { font-size: 12px; color: var(--suave); margin: 8px 0 0; }
+
+/* Aviso breve */
+.aviso {
+  position: fixed; left: 50%; z-index: 1300; transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top, 0px) + 84px);
+  background: var(--negro); color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 500;
+  max-width: calc(100% - 32px); text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+}
+.aviso.error { background: #b8401b; }
+
+@media (min-width: 640px) {
+  .hoja { left: 50%; right: auto; width: 560px; transform: translateX(-50%); }
+  @keyframes subir { from { transform: translate(-50%, 40px); opacity: 0; } }
+  .acciones { justify-content: center; }
+  .acciones .btn { flex: 0 1 260px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="mapa" role="application" aria-label="Mapa del área alrededor de la obra"></div>
+
+<header class="barra">
+  <div class="textos">
+    <h1>Mapa del Cauce</h1>
+    <p>Puntos críticos de los cauces Perú y Antequera, a <span id="radio-texto">500</span>&nbsp;m de la obra del MuCi</p>
+  </div>
+  <div class="contador" aria-live="polite"><b id="total">0</b><span>puntos</span></div>
+</header>
+
+<div class="flotantes" id="flotantes">
+  <button class="redondo" id="btn-capa" type="button" aria-pressed="false" aria-label="Ver imagen satelital" title="Satélite">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+  </button>
+  <button class="redondo" id="btn-ubicacion" type="button" aria-label="Ir a mi ubicación" title="Mi ubicación">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+  </button>
+  <button class="redondo" id="btn-area" type="button" aria-label="Ver toda el área" title="Ver toda el área">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  </button>
+</div>
+
+<div class="mira" id="mira" hidden><span></span></div>
+
+<!-- Modo normal -->
+<nav class="acciones" id="acciones-normal">
+  <button class="btn btn-secundario" id="btn-lista" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+    Ver puntos
+  </button>
+  <button class="btn btn-primario" id="btn-marcar" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Marcar punto
+  </button>
+</nav>
+
+<!-- Modo ubicar -->
+<nav class="acciones" id="acciones-ubicar" hidden>
+  <p class="pista" id="pista">Mové el mapa hasta que la mira quede sobre el lugar obstruido</p>
+  <button class="btn btn-texto" id="btn-cancelar-ubicar" type="button">Cancelar</button>
+  <button class="btn btn-primario" id="btn-aqui" type="button">Marcar aquí</button>
+</nav>
+
+<div class="velo" id="velo" hidden></div>
+
+<!-- Hoja: nuevo punto -->
+<form class="hoja" id="hoja-nuevo" hidden aria-labelledby="titulo-nuevo">
+  <h2 id="titulo-nuevo">Nuevo punto crítico</h2>
+  <p class="sub">Todo lo de abajo es opcional. Podés guardar el punto así nomás.</p>
+  <div class="cuerpo">
+    <fieldset class="tipos" id="cauces">
+      <legend class="etiqueta">¿En qué cauce?</legend>
+      <button type="button" class="tipo" data-cauce="peru" aria-pressed="false">Cauce Perú</button>
+      <button type="button" class="tipo" data-cauce="antequera" aria-pressed="false">Cauce Antequera</button>
+    </fieldset>
+    <fieldset class="tipos" id="tipos">
+      <legend class="etiqueta">¿Qué obstruye el cauce?</legend>
+      <button type="button" class="tipo" data-tipo="basura" aria-pressed="false">Basura</button>
+      <button type="button" class="tipo" data-tipo="construccion" aria-pressed="false">Restos de obra</button>
+      <button type="button" class="tipo" data-tipo="vegetacion" aria-pressed="false">Ramas o vegetación</button>
+      <button type="button" class="tipo" data-tipo="otro" aria-pressed="false">Otro</button>
+    </fieldset>
+    <label class="etiqueta" for="descripcion">Descripción <small>(opcional)</small></label>
+    <textarea id="descripcion" name="descripcion" maxlength="500" placeholder="Ej.: bolsas de basura y escombros tapando la alcantarilla"></textarea>
+    <div class="conteo"><span id="conteo">0</span>/500</div>
+  </div>
+  <div class="pie">
+    <button class="btn btn-texto" type="button" id="btn-cancelar-nuevo">Cancelar</button>
+    <button class="btn btn-primario" type="submit" id="btn-guardar">Guardar punto</button>
+  </div>
+</form>
+
+<!-- Hoja: lista -->
+<section class="hoja" id="hoja-lista" hidden aria-labelledby="titulo-lista">
+  <h2 id="titulo-lista">Puntos marcados</h2>
+  <p class="sub" id="sub-lista">Tocá un punto para verlo en el mapa.</p>
+  <div class="cuerpo">
+    <ul class="lista" id="lista"></ul>
+    <div class="vacio" id="lista-vacia" hidden>
+      <b>Todavía no hay puntos</b>
+      Tocá “Marcar punto” para cargar el primero.
+    </div>
+  </div>
+  <div class="pie" style="flex-direction:column;gap:0">
+    <button class="btn btn-primario" type="button" id="btn-pdf" style="margin-bottom:10px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 12v6M9 15l3 3 3-3"/></svg>
+      Descargar PDF para la Municipalidad
+    </button>
+    <div class="descargas">
+      <a href="api/puntos.csv" download>Planilla (CSV)</a>
+      <a href="api/puntos.geojson" download>Mapa (GeoJSON)</a>
+    </div>
+    <p class="descargas-nota">El PDF trae el mapa con los puntos numerados y una tabla con cada descripción. La planilla se abre con Excel.</p>
+    <button class="btn btn-secundario" type="button" id="btn-cerrar-lista" style="margin-top:12px">Cerrar</button>
+  </div>
+</section>
+
+<div class="aviso" id="aviso" role="status" hidden></div>
+
+<script src="vendor/leaflet.js"></script>
+<script src="pdf.js"></script>
+<script>
+"use strict";
+const CAUCES = { peru: "Cauce Perú", antequera: "Cauce Antequera" };
+const TIPOS = { basura: "Basura", construccion: "Restos de obra", vegetacion: "Ramas o vegetación", otro: "Otro" };
+const $ = (id) => document.getElementById(id);
+
+let cfg, mapa, centro, capaCalles, capaSatelite;
+let puntos = [];
+const marcadores = new Map();
+let tipoElegido = "";
+let cauceElegido = "";
+let ubicacionGuardar = null;
+let ultimoNuevo = null;
+
+// Token de administración: se pasa una vez como ?admin=TOKEN y queda guardado en este teléfono.
+let adminToken = null;
+try {
+  const qs = new URLSearchParams(location.search);
+  if (qs.has("admin")) {
+    localStorage.setItem("adminToken", qs.get("admin"));
+    history.replaceState(null, "", location.pathname);
+  }
+  adminToken = localStorage.getItem("adminToken");
+} catch (e) { /* sin almacenamiento: sin modo admin */ }
+
+async function api(ruta, opciones = {}) {
+  const r = await fetch(ruta, opciones);
+  const datos = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(datos.error || "No se pudo conectar con el servidor. Revisá tu conexión.");
+  return datos;
+}
+
+let avisoTimer;
+function avisar(texto, esError = false) {
+  const el = $("aviso");
+  el.textContent = texto;
+  el.classList.toggle("error", esError);
+  el.hidden = false;
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(() => { el.hidden = true; }, esError ? 5000 : 2600);
+}
+
+function fecha(iso) {
+  try {
+    return new Date(iso).toLocaleString("es-PY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch (e) { return iso; }
+}
+
+// --- Mapa ---------------------------------------------------------------
+
+function circuloComoAnillo(c, radio, pasos = 96) {
+  const R = 6378137, pts = [];
+  const lat = c.lat * Math.PI / 180;
+  for (let i = 0; i <= pasos; i++) {
+    const a = (i / pasos) * 2 * Math.PI;
+    const dy = radio * Math.cos(a), dx = radio * Math.sin(a);
+    pts.push([c.lat + (dy / R) * 180 / Math.PI, c.lng + (dx / (R * Math.cos(lat))) * 180 / Math.PI]);
+  }
+  return pts;
+}
+
+function iniciarMapa() {
+  centro = L.latLng(cfg.centro.lat, cfg.centro.lng);
+  mapa = L.map("mapa", { zoomControl: false, minZoom: 14, maxZoom: 19, attributionControl: true });
+
+  capaCalles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(mapa);
+  capaSatelite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, attribution: "Imágenes &copy; Esri"
+  });
+
+  // Oscurece lo que queda fuera del radio y marca el borde.
+  const anillo = circuloComoAnillo(centro, cfg.radio);
+  const mundo = [[-89, -179.9], [-89, 179.9], [89, 179.9], [89, -179.9]];
+  L.polygon([mundo, anillo], { stroke: false, fillColor: "#000", fillOpacity: 0.28, interactive: false }).addTo(mapa);
+  L.polygon(anillo, { color: "#6950A1", weight: 3, dashArray: "8 6", fill: false, interactive: false }).addTo(mapa);
+  L.marker(centro, {
+    interactive: false, keyboard: false,
+    icon: L.divIcon({ className: "", html: '<span class="obra-icono">Obra MuCi</span>', iconSize: [0, 0] })
+  }).addTo(mapa);
+
+  const limites = L.latLngBounds(anillo);
+  mapa.setMaxBounds(limites.pad(0.6));
+  verArea();
+  mapa.on("move", actualizarPista);
+}
+
+function verArea() {
+  mapa.fitBounds(L.latLngBounds(circuloComoAnillo(centro, cfg.radio)), {
+    paddingTopLeft: [10, 90], paddingBottomRight: [10, 100]
+  });
+}
+
+function iconoPunto(p, nuevo) {
+  const n = String(p.id);
+  return L.divIcon({
+    className: "",
+    html: `<div class="punto-icono${nuevo ? " nuevo" : ""}"><b${n.length > 2 ? ' class="largo"' : ""}>${n}</b></div>`,
+    iconSize: [32, 32], iconAnchor: [16, 38], popupAnchor: [0, -36]
+  });
+}
+
+function chips(p) {
+  const cont = document.createElement("span");
+  cont.className = "chips";
+  if (p.cauce) {
+    const c = document.createElement("span");
+    c.className = "chip cauce";
+    c.textContent = CAUCES[p.cauce] || p.cauce;
+    cont.append(c);
+  }
+  if (p.tipo) {
+    const t = document.createElement("span");
+    t.className = "chip";
+    t.textContent = TIPOS[p.tipo] || p.tipo;
+    cont.append(t);
+  }
+  return cont;
+}
+
+function contenidoPopup(p) {
+  const div = document.createElement("div");
+  const num = document.createElement("div");
+  num.className = "popup-num";
+  num.textContent = `Punto ${p.id}`;
+  div.append(num);
+  if (p.cauce || p.tipo) div.append(chips(p));
+  const d = document.createElement("p");
+  d.className = "popup-desc" + (p.descripcion ? "" : " vacia");
+  d.textContent = p.descripcion || "Sin descripción";
+  div.append(d);
+  const f = document.createElement("div");
+  f.className = "popup-fecha";
+  f.textContent = "Marcado el " + fecha(p.creado);
+  div.append(f);
+  if (adminToken) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "popup-borrar";
+    b.textContent = "Borrar este punto";
+    b.addEventListener("click", () => borrar(p, b));
+    div.append(b);
+  }
+  return div;
+}
+
+function dibujarPuntos() {
+  const ids = new Set(puntos.map((p) => p.id));
+  for (const [id, m] of marcadores) {
+    if (!ids.has(id)) { m.remove(); marcadores.delete(id); }
+  }
+  for (const p of puntos) {
+    if (marcadores.has(p.id)) continue;
+    const m = L.marker([p.lat, p.lng], { icon: iconoPunto(p, p.id === ultimoNuevo), title: `Punto ${p.id}`, zIndexOffset: p.id })
+      .bindPopup(() => contenidoPopup(p))
+      .addTo(mapa);
+    marcadores.set(p.id, m);
+  }
+  $("total").textContent = puntos.length;
+  dibujarLista();
+}
+
+function dibujarLista() {
+  const ul = $("lista");
+  ul.replaceChildren();
+  $("lista-vacia").hidden = puntos.length > 0;
+  $("titulo-lista").textContent = `Puntos marcados (${puntos.length})`;
+  for (const p of [...puntos].reverse()) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "item";
+    const n = document.createElement("span");
+    n.className = "n";
+    n.textContent = p.id;
+    const info = document.createElement("span");
+    info.className = "info";
+    if (p.cauce || p.tipo) info.append(chips(p));
+    const d = document.createElement("p");
+    d.className = "d" + (p.descripcion ? "" : " vacia");
+    d.textContent = p.descripcion || "Sin descripción";
+    const f = document.createElement("span");
+    f.className = "f";
+    f.textContent = fecha(p.creado);
+    info.append(d, f);
+    const ir = document.createElement("span");
+    ir.className = "ir";
+    ir.textContent = "Ver";
+    b.append(n, info, ir);
+    b.addEventListener("click", () => {
+      cerrarHojas();
+      mapa.flyTo([p.lat, p.lng], 18, { duration: 0.6 });
+      mapa.once("moveend", () => marcadores.get(p.id)?.openPopup());
+    });
+    li.append(b);
+    ul.append(li);
+  }
+}
+
+async function cargar() {
+  try {
+    puntos = await api("api/puntos");
+    dibujarPuntos();
+  } catch (e) {
+    avisar(e.message, true);
+  }
+}
+
+// --- Marcar un punto ----------------------------------------------------
+
+function dentroDelArea(latlng) {
+  return mapa.distance(latlng, centro) <= cfg.radio;
+}
+
+function actualizarPista() {
+  if ($("acciones-ubicar").hidden) return;
+  const dentro = dentroDelArea(mapa.getCenter());
+  $("btn-aqui").disabled = !dentro;
+  const pista = $("pista");
+  pista.classList.toggle("mal", !dentro);
+  pista.textContent = dentro
+    ? "Mové el mapa hasta que la mira quede sobre el lugar obstruido"
+    : `La mira está fuera del área de ${Math.round(cfg.radio)} m. Acercala al círculo.`;
+}
+
+function modoUbicar(activo) {
+  $("acciones-normal").hidden = activo;
+  $("acciones-ubicar").hidden = !activo;
+  $("mira").hidden = !activo;
+  mapa.closePopup();
+  if (activo) {
+    if (!dentroDelArea(mapa.getCenter())) mapa.panTo(centro);
+    if (mapa.getZoom() < 17) mapa.setZoom(17);
+    actualizarPista();
+  }
+}
+
+function abrirHoja(id) {
+  $("velo").hidden = false;
+  $(id).hidden = false;
+}
+
+function cerrarHojas() {
+  $("velo").hidden = true;
+  $("hoja-nuevo").hidden = true;
+  $("hoja-lista").hidden = true;
+}
+
+function elegirTipo(tipo) {
+  tipoElegido = tipoElegido === tipo ? "" : tipo;
+  for (const b of document.querySelectorAll("[data-tipo]")) {
+    b.setAttribute("aria-pressed", String(b.dataset.tipo === tipoElegido));
+  }
+}
+
+function elegirCauce(cauce) {
+  cauceElegido = cauceElegido === cauce ? "" : cauce;
+  for (const b of document.querySelectorAll("[data-cauce]")) {
+    b.setAttribute("aria-pressed", String(b.dataset.cauce === cauceElegido));
+  }
+}
+
+function limpiarFormulario() {
+  elegirCauce("");
+  elegirTipo("");
+  $("descripcion").value = "";
+  $("conteo").textContent = "0";
+}
+
+async function guardar(ev) {
+  ev.preventDefault();
+  if (!ubicacionGuardar) return;
+  const boton = $("btn-guardar");
+  boton.disabled = true;
+  boton.textContent = "Guardando…";
+  try {
+    const nuevo = await api("api/puntos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lat: ubicacionGuardar.lat, lng: ubicacionGuardar.lng,
+        cauce: cauceElegido, tipo: tipoElegido, descripcion: $("descripcion").value.trim()
+      })
+    });
+    ultimoNuevo = nuevo.id;
+    puntos = puntos.filter((p) => p.id !== nuevo.id).concat(nuevo);
+    dibujarPuntos();
+    cerrarHojas();
+    modoUbicar(false);
+    limpiarFormulario();
+    ubicacionGuardar = null;
+    avisar(`Punto ${nuevo.id} guardado. ¡Gracias!`);
+  } catch (e) {
+    avisar(e.message, true);
+  } finally {
+    boton.disabled = false;
+    boton.textContent = "Guardar punto";
+  }
+}
+
+async function borrar(p, boton) {
+  if (boton.dataset.confirmar !== "1") {
+    boton.dataset.confirmar = "1";
+    boton.textContent = "Tocá de nuevo para confirmar";
+    return;
+  }
+  try {
+    await api(`api/puntos/${p.id}`, { method: "DELETE", headers: { "X-Admin-Token": adminToken } });
+    mapa.closePopup();
+    puntos = puntos.filter((x) => x.id !== p.id);
+    dibujarPuntos();
+    avisar(`Punto ${p.id} borrado`);
+  } catch (e) {
+    avisar(e.message, true);
+  }
+}
+
+// --- PDF para la Municipalidad -----------------------------------------
+
+async function descargarPDF() {
+  const boton = $("btn-pdf");
+  const textoOriginal = boton.innerHTML;
+  boton.disabled = true;
+  boton.textContent = "Generando PDF…";
+  try {
+    puntos = await api("api/puntos");  // incluir lo último que cargaron los demás
+    dibujarPuntos();
+    if (!puntos.length) throw new Error("Todavía no hay puntos para incluir en el PDF.");
+    const { blob, nombre, faltantes } = await window.generarPDF({
+      cfg, puntos, satelite: mapa.hasLayer(capaSatelite), tipos: TIPOS, cauces: CAUCES
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nombre;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    avisar(faltantes ? "PDF listo, pero parte del mapa no cargó. Si se ve incompleto, generalo de nuevo." : "PDF listo");
+  } catch (e) {
+    avisar(e.message || "No se pudo generar el PDF. Revisá tu conexión y probá de nuevo.", true);
+  } finally {
+    boton.disabled = false;
+    boton.innerHTML = textoOriginal;
+  }
+}
+
+// --- Controles ----------------------------------------------------------
+
+function conectarControles() {
+  $("btn-marcar").addEventListener("click", () => modoUbicar(true));
+  $("btn-cancelar-ubicar").addEventListener("click", () => modoUbicar(false));
+  $("btn-aqui").addEventListener("click", () => {
+    ubicacionGuardar = mapa.getCenter();
+    abrirHoja("hoja-nuevo");
+  });
+  $("btn-cancelar-nuevo").addEventListener("click", cerrarHojas);
+  $("hoja-nuevo").addEventListener("submit", guardar);
+  $("btn-lista").addEventListener("click", () => abrirHoja("hoja-lista"));
+  $("btn-cerrar-lista").addEventListener("click", cerrarHojas);
+  $("btn-pdf").addEventListener("click", descargarPDF);
+  $("velo").addEventListener("click", cerrarHojas);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarHojas(); });
+  for (const b of document.querySelectorAll("[data-tipo]")) {
+    b.addEventListener("click", () => elegirTipo(b.dataset.tipo));
+  }
+  for (const b of document.querySelectorAll("[data-cauce]")) {
+    b.addEventListener("click", () => elegirCauce(b.dataset.cauce));
+  }
+  $("descripcion").addEventListener("input", (e) => { $("conteo").textContent = e.target.value.length; });
+
+  $("btn-capa").addEventListener("click", (e) => {
+    const satelite = !mapa.hasLayer(capaSatelite);
+    if (satelite) { mapa.removeLayer(capaCalles); capaSatelite.addTo(mapa); }
+    else { mapa.removeLayer(capaSatelite); capaCalles.addTo(mapa); }
+    e.currentTarget.setAttribute("aria-pressed", String(satelite));
+    e.currentTarget.setAttribute("aria-label", satelite ? "Ver mapa de calles" : "Ver imagen satelital");
+  });
+  $("btn-area").addEventListener("click", verArea);
+  $("btn-ubicacion").addEventListener("click", () => {
+    if (!navigator.geolocation) return avisar("Este teléfono no permite compartir la ubicación.", true);
+    avisar("Buscando tu ubicación…");
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const aqui = L.latLng(pos.coords.latitude, pos.coords.longitude);
+      if (!dentroDelArea(aqui)) return avisar(`Estás fuera del área de ${Math.round(cfg.radio)} m de la obra.`, true);
+      mapa.flyTo(aqui, 18, { duration: 0.6 });
+    }, () => avisar("No se pudo obtener tu ubicación. Revisá el permiso de ubicación del navegador.", true),
+    { enableHighAccuracy: true, timeout: 12000 });
+  });
+
+  // Mantener el mapa al día con lo que cargan los demás.
+  setInterval(() => { if (!document.hidden) cargar(); }, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) cargar(); });
+}
+
+(async function iniciar() {
+  try {
+    cfg = await api("api/config");
+  } catch (e) {
+    avisar(e.message, true);
+    return;
+  }
+  $("radio-texto").textContent = Math.round(cfg.radio);
+  iniciarMapa();
+  conectarControles();
+  cargar();
+})();
+</script>
+</body>
+</html>

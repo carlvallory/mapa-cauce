@@ -1,0 +1,47 @@
+# Servicio del Mapa del Cauce (cauces.muci.org).
+#
+# Copiar a /etc/systemd/system/mapa-cauce.service
+#
+# Corre como www-data en un puerto local y nginx termina TLS. No usa virtualenv
+# porque server.py solo necesita la biblioteca estándar de Python.
+
+[Unit]
+Description=Mapa del Cauce (puntos criticos de los cauces Peru y Antequera)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/areas/global/mapa-cauce
+
+Environment=HOST=127.0.0.1
+Environment=PORT=8101
+Environment=DB_PATH=/var/lib/mapa-cauce/puntos.db
+# .env lleva ADMIN_TOKEN=... (clave para borrar puntos). systemd no admite
+# comillas ni espacios en ese archivo.
+EnvironmentFile=/var/www/areas/global/mapa-cauce/.env
+
+ExecStart=/usr/bin/python3 /var/www/areas/global/mapa-cauce/server.py
+Restart=on-failure
+RestartSec=5
+
+# systemd crea /var/lib/mapa-cauce con dueño www-data y la deja escribible
+# aunque el resto del sistema quede en solo lectura.
+StateDirectory=mapa-cauce
+StateDirectoryMode=0750
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+# Un proceso Python liviano: si algo se descontrola, cae este servicio y no el
+# resto de los sitios de la máquina.
+MemoryHigh=96M
+MemoryMax=128M
+CPUQuota=50%
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target
