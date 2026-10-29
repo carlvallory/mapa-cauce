@@ -29,7 +29,7 @@ PORT = int(os.environ.get("PORT", "8080"))
 # Centro de la obra del MuCi en la Costanera Norte de Asunción.
 CENTRO = (float(os.environ.get("CENTRO_LAT", "-25.277576")),
           float(os.environ.get("CENTRO_LNG", "-57.619978")))
-RADIO_M = float(os.environ.get("RADIO_M", "700"))
+RADIO_M = float(os.environ.get("RADIO_M", "750"))
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 ZONA = ZoneInfo(os.environ.get("ZONA_HORARIA", "America/Asuncion"))
 

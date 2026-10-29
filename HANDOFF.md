@@ -24,7 +24,7 @@ La web está completa y probada en local, pero **no está desplegada**.
   la capa elegida en pantalla (calles o satélite).
 - Centro: **-25.277576, -57.619978** (la obra). Ya es el
   valor por defecto en `server.py`.
-- Radio: **700 m** (se amplió desde 500 m el 2026-10-29). El PDF ajusta solo el
+- Radio: **750 m** (se amplió desde 500 m, luego 700 m, el 2026-10-29). El PDF ajusta solo el
   tamaño del mapa al radio.
 
 ## Contexto del pedido

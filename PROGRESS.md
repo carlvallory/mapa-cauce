@@ -78,3 +78,10 @@
   radio, y los pines, etiquetas y escala conservan su tamaño en la hoja.
 - Probado: el servidor acepta un punto a 650 m y rechaza uno a 750 m; la web
   muestra el círculo de 700 m y el PDF lo muestra completo.
+
+## 2026-10-29 — Radio ampliado a 750 m
+
+- `RADIO_M` pasa de 700 a 750 m por defecto (server.py, README, HANDOFF).
+- Probado: el servidor acepta un punto a 720 m y rechaza uno a 780 m. La web
+  muestra el círculo de 750 m y el PDF lo incluye completo, con pines del
+  mismo tamaño.

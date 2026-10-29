@@ -39,7 +39,7 @@ conexión y corta las descripciones en 500 caracteres. No guarda IPs.
 | Variable | Por defecto | Para qué |
 |---|---|---|
 | `CENTRO_LAT`, `CENTRO_LNG` | `-25.277576`, `-57.619978` | Centro de la obra |
-| `RADIO_M` | `700` | Radio en metros |
+| `RADIO_M` | `750` | Radio en metros |
 | `ADMIN_TOKEN` | vacío (nadie puede borrar) | Clave para borrar puntos |
 | `DB_PATH` | `./puntos.db` | Archivo SQLite |
 | `HOST`, `PORT` | `127.0.0.1`, `8080` | Dónde escucha |
