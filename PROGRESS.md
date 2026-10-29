@@ -47,3 +47,34 @@
 - Verificado en el navegador: el círculo de 500 m queda sobre la obra, entre la
   Costanera y el Parque Caballero, en las vistas de calles y de satélite.
 - Pendiente: despliegue en producción.
+
+## 2026-10-29 — Despliegue preparado y repo público
+
+- Se revisó el servidor de producción en solo lectura (nginx 1.30, Ubuntu
+  22.04, Python 3.10) y se armó el despliegue con el mismo esquema que las
+  otras apps: `despliegue/mapa-cauce.service` (systemd, www-data, puerto 8101,
+  límites de memoria y CPU) y `despliegue/cauces.muci.org.nginx` (TLS, CSP que
+  permite los mapas de OSM y Esri, tope contra ráfagas). README con los pasos.
+- Repo público creado: https://github.com/carlvallory/mapa-cauce. Antes de
+  publicar se sacaron los datos personales y los detalles internos del
+  servidor.
+- Pendiente: DNS de `cauces.muci.org` e instalación en el servidor (requiere root).
+
+## 2026-10-29 — Clave de administración fuera de los logs
+
+- Una revisión automática de seguridad marcó que `?admin=CLAVE` dejaba la
+  clave en los logs del servidor y de nginx. Ahora va como `#admin=CLAVE`
+  (el fragmento no viaja al servidor) y el log del servidor ya no registra
+  la query string. También funciona si el enlace se abre con la página ya
+  cargada.
+- Verificado: el log no contiene la clave, y el modo admin se activa y limpia
+  la dirección.
+
+## 2026-10-29 — Radio ampliado a 700 m
+
+- `RADIO_M` pasa de 500 a 700 m por defecto. Los textos de la web y el PDF
+  toman el radio de la configuración.
+- PDF: el mapa se achica para que entre el círculo completo cualquiera sea el
+  radio, y los pines, etiquetas y escala conservan su tamaño en la hoja.
+- Probado: el servidor acepta un punto a 650 m y rechaza uno a 750 m; la web
+  muestra el círculo de 700 m y el PDF lo muestra completo.

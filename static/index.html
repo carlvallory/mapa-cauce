@@ -331,16 +331,22 @@ let cauceElegido = "";
 let ubicacionGuardar = null;
 let ultimoNuevo = null;
 
-// Token de administración: se pasa una vez como ?admin=TOKEN y queda guardado en este teléfono.
+// Token de administración: se pasa una vez como #admin=TOKEN y queda guardado en este teléfono.
+// Va en el fragmento (#) porque el navegador nunca lo envía al servidor ni queda en los logs.
 let adminToken = null;
-try {
-  const qs = new URLSearchParams(location.search);
-  if (qs.has("admin")) {
-    localStorage.setItem("adminToken", qs.get("admin"));
-    history.replaceState(null, "", location.pathname);
-  }
-  adminToken = localStorage.getItem("adminToken");
-} catch (e) { /* sin almacenamiento: sin modo admin */ }
+function leerAdmin() {
+  try {
+    const frag = new URLSearchParams(location.hash.slice(1));
+    if (frag.has("admin")) {
+      localStorage.setItem("adminToken", frag.get("admin"));
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    adminToken = localStorage.getItem("adminToken");
+  } catch (e) { /* sin almacenamiento: sin modo admin */ }
+}
+leerAdmin();
+// Si el enlace con #admin= se abre con la página ya cargada, el navegador no recarga.
+addEventListener("hashchange", leerAdmin);
 
 async function api(ruta, opciones = {}) {
   const r = await fetch(ruta, opciones);

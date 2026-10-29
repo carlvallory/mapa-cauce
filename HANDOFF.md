@@ -4,6 +4,12 @@
 
 La web está completa y probada en local, pero **no está desplegada**.
 
+- Repo público: https://github.com/carlvallory/mapa-cauce (rama `main`).
+  No subir datos personales ni detalles internos del servidor: es público.
+- Subdominio propuesto: **`cauces.muci.org`** (falta crear el DNS). Puerto
+  local 8101, código en `/var/www/areas/global/mapa-cauce`, base en
+  `/var/lib/mapa-cauce/`. Lo instala una persona con root (README, pasos 1 a 4).
+
 - Código: `server.py` (Python sin dependencias + SQLite) y `static/index.html`.
 - Despliegue: `README.md` (systemd + nginx).
 - Los puntos están numerados: el número aparece en el pin del mapa, en el
@@ -18,7 +24,8 @@ La web está completa y probada en local, pero **no está desplegada**.
   la capa elegida en pantalla (calles o satélite).
 - Centro: **-25.277576, -57.619978** (la obra). Ya es el
   valor por defecto en `server.py`.
-- Radio: **500 m** (se eligió sobre 300 m para que se vea mejor el entorno).
+- Radio: **700 m** (se amplió desde 500 m el 2026-10-29). El PDF ajusta solo el
+  tamaño del mapa al radio.
 
 ## Contexto del pedido
 

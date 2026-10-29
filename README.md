@@ -39,7 +39,7 @@ conexión y corta las descripciones en 500 caracteres. No guarda IPs.
 | Variable | Por defecto | Para qué |
 |---|---|---|
 | `CENTRO_LAT`, `CENTRO_LNG` | `-25.277576`, `-57.619978` | Centro de la obra |
-| `RADIO_M` | `500` | Radio en metros |
+| `RADIO_M` | `700` | Radio en metros |
 | `ADMIN_TOKEN` | vacío (nadie puede borrar) | Clave para borrar puntos |
 | `DB_PATH` | `./puntos.db` | Archivo SQLite |
 | `HOST`, `PORT` | `127.0.0.1`, `8080` | Dónde escucha |
@@ -99,7 +99,9 @@ la misma carpeta y `systemctl restart mapa-cauce`. La base no se toca.
 
 ## Borrar puntos (moderación)
 
-Abrir una vez en el teléfono `https://cauces.muci.org/?admin=LA_CLAVE` (la clave está en `.env`). La clave queda
+Abrir una vez en el teléfono `https://cauces.muci.org/#admin=LA_CLAVE` (la clave está en `.env`).
+Va después de `#` a propósito: esa parte de la dirección no viaja al servidor,
+así que la clave no queda en ningún log. La clave queda
 guardada en ese navegador y desde ahí cada punto muestra "Borrar este punto"
 (pide confirmar con un segundo toque).
 

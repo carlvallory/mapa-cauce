@@ -29,7 +29,7 @@ PORT = int(os.environ.get("PORT", "8080"))
 # Centro de la obra del MuCi en la Costanera Norte de Asunción.
 CENTRO = (float(os.environ.get("CENTRO_LAT", "-25.277576")),
           float(os.environ.get("CENTRO_LNG", "-57.619978")))
-RADIO_M = float(os.environ.get("RADIO_M", "500"))
+RADIO_M = float(os.environ.get("RADIO_M", "700"))
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 ZONA = ZoneInfo(os.environ.get("ZONA_HORARIA", "America/Asuncion"))
 
@@ -117,7 +117,9 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "MapaCauce/1.0"
 
     def log_message(self, fmt, *args):
-        print("%s %s" % (self.ip(), fmt % args), flush=True)
+        # Sin query string: lo que venga en la URL no tiene por qué quedar en el log.
+        linea = (fmt % args).replace(self.requestline, f"{self.command} {urlparse(self.path).path}")
+        print("%s %s" % (self.ip(), linea), flush=True)
 
     def ip(self):
         # El servidor escucha solo en localhost, así que el proxy es el único cliente.

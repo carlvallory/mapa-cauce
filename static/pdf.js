@@ -7,7 +7,7 @@
     rosa: [241, 125, 177], verde: [0, 178, 107], negro: [0, 0, 0],
     violeta: [105, 80, 161], naranja: [243, 112, 67], suave: [91, 84, 104], tinte: [245, 241, 250]
   };
-  const ZOOM = 17;      // ~1,08 m por píxel en Asunción: el radio de 500 m entra con margen
+  const ZOOM = 17;      // ~1,08 m por píxel en Asunción
   const TILE = 256;
 
   // --- utilidades ---------------------------------------------------------
@@ -60,32 +60,39 @@
   // --- mapa en canvas -------------------------------------------------------
 
   async function dibujarMapa({ centro, radio, puntos, satelite }) {
+    // Canvas de tamaño fijo, así pines y textos salen siempre del mismo tamaño en la hoja.
+    // Si el círculo (más un 12 % de margen) no entra a zoom 17, los tiles se achican.
     const LADO = 1240;
+    const metrosPorPx17 = 156543.03392 * Math.cos(centro.lat * Math.PI / 180) / Math.pow(2, ZOOM);
+    const f = Math.min(1, LADO / ((2 * radio * 1.12) / metrosPorPx17));
+    const metrosPorPx = metrosPorPx17 / f;
+    const tile = TILE * f;
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = LADO;
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#e9e5ef";
     ctx.fillRect(0, 0, LADO, LADO);
+    ctx.imageSmoothingQuality = "high";
 
     const c = proyectar(centro.lat, centro.lng, ZOOM);
-    const ox = c.x - LADO / 2, oy = c.y - LADO / 2;
-    const aPx = (lat, lng) => { const p = proyectar(lat, lng, ZOOM); return { x: p.x - ox, y: p.y - oy }; };
+    const ox = c.x * f - LADO / 2, oy = c.y * f - LADO / 2;
+    const aPx = (lat, lng) => { const p = proyectar(lat, lng, ZOOM); return { x: p.x * f - ox, y: p.y * f - oy }; };
 
     // Fondo: tiles del mapa elegido en pantalla.
     const pedidos = [];
-    for (let tx = Math.floor(ox / TILE); tx <= Math.floor((ox + LADO) / TILE); tx++) {
-      for (let ty = Math.floor(oy / TILE); ty <= Math.floor((oy + LADO) / TILE); ty++) {
+    for (let tx = Math.floor(ox / tile); tx <= Math.floor((ox + LADO) / tile); tx++) {
+      for (let ty = Math.floor(oy / tile); ty <= Math.floor((oy + LADO) / tile); ty++) {
         pedidos.push(cargarImagen(urlTile(satelite, ZOOM, tx, ty)).then((img) => ({ img, tx, ty })));
       }
     }
     let faltantes = 0;
     for (const { img, tx, ty } of await Promise.all(pedidos)) {
-      if (img) ctx.drawImage(img, tx * TILE - ox, ty * TILE - oy);
+      // +0.5 px de solape para que no se vean costuras entre tiles achicados.
+      if (img) ctx.drawImage(img, tx * tile - ox, ty * tile - oy, tile + 0.5, tile + 0.5);
       else faltantes++;
     }
 
     // Área de trabajo: fuera del radio, oscurecido; borde punteado violeta.
-    const metrosPorPx = 156543.03392 * Math.cos(centro.lat * Math.PI / 180) / Math.pow(2, ZOOM);
     const rPx = radio / metrosPorPx;
     ctx.save();
     ctx.beginPath();
