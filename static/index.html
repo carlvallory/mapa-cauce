@@ -114,6 +114,7 @@ button { cursor: pointer; }
   font-variant-numeric: tabular-nums; letter-spacing: -.02em;
 }
 .punto-icono b.largo { font-size: 10px; }
+.punto-icono.limpiado { background: var(--verde); opacity: .85; }
 .punto-icono.nuevo { animation: caer .45s ease-out; }
 @keyframes caer { from { transform: translateY(-18px) rotate(-45deg); opacity: 0; } }
 .obra-icono {
@@ -128,12 +129,16 @@ button { cursor: pointer; }
 .popup-desc.vacia { color: var(--suave); font-style: italic; }
 .popup-fecha { font-size: 12px; color: var(--suave); }
 .popup-borrar { margin-top: 10px; border: 0; background: none; color: #b8401b; font-weight: 600; padding: 0; font-size: 13px; }
+.popup-estado { margin: 10px 16px 0 0; border: 0; background: none; color: #007a49; font-weight: 600; padding: 0; font-size: 13px; }
+.limpio { margin: 6px 0 0; font-size: 13px; color: #007a49; font-weight: 600; }
+.limpio span { display: block; font-weight: 400; color: var(--suave); white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .chip {
   display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
   background: rgba(243,112,67,.14); color: #a8431f;
 }
 .chip.cauce { background: rgba(105,80,161,.12); color: var(--violeta); }
+.chip.ok { background: rgba(0,178,107,.14); color: #007a49; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 
 /* Hojas inferiores */
@@ -170,7 +175,7 @@ textarea:focus { border-color: var(--violeta); outline: none; }
 
 /* Lista de puntos */
 .lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.lista li { border-top: 1px solid var(--linea); display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px; }
+.lista li { border-top: 1px solid var(--linea); display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 4px; }
 .lista li:first-child { border-top: 0; }
 .item {
   width: 100%; border: 0; background: none; text-align: left; padding: 14px 0;
@@ -184,7 +189,12 @@ textarea:focus { border-color: var(--violeta); outline: none; }
 .item .d { margin: 4px 0 2px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .item .d.vacia { color: var(--suave); font-style: italic; }
 .item .f { font-size: 12px; color: var(--suave); }
+.item .n.limpiado { background: var(--verde); }
 .item .ir { color: var(--violeta); font-size: 13px; font-weight: 600; align-self: center; }
+.btn-estado {
+  border: 0; background: none; color: #007a49; font-size: 13px; font-weight: 600;
+  padding: 10px 4px 10px 10px; min-height: 44px;
+}
 .btn-borrar {
   border: 0; background: none; color: #b8401b; font-size: 13px; font-weight: 600;
   padding: 10px 4px 10px 10px; min-height: 44px;
@@ -201,6 +211,8 @@ textarea:focus { border-color: var(--violeta); outline: none; }
 .confirmar p { margin: 0 0 6px; color: var(--suave); font-size: 14px; line-height: 1.45; }
 .confirmar .cita { color: var(--negro); background: var(--tinte); border-radius: 10px; padding: 8px 12px; margin: 10px 0 4px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .confirmar .pie { display: flex; gap: 10px; margin-top: 16px; }
+.confirmar textarea { min-height: 72px; margin-top: 10px; }
+.btn-confirmar-ok { background: var(--verde); color: #fff; }
 .btn-peligro { background: #c2410c; color: #fff; }
 .vacio { text-align: center; padding: 28px 8px; color: var(--suave); }
 .vacio b { display: block; color: var(--negro); font-size: 16px; margin-bottom: 4px; }
@@ -308,7 +320,7 @@ textarea:focus { border-color: var(--violeta); outline: none; }
 <!-- Hoja: lista -->
 <section class="hoja" id="hoja-lista" hidden aria-labelledby="titulo-lista">
   <h2 id="titulo-lista">Puntos marcados</h2>
-  <p class="sub" id="sub-lista">Tocá un punto para verlo en el mapa. Los que marcaste desde este teléfono se pueden borrar.</p>
+  <p class="sub" id="sub-lista">Tocá un punto para verlo en el mapa. Los que marcaste desde este teléfono se pueden borrar. Los verdes ya fueron limpiados.</p>
   <div class="cuerpo">
     <ul class="lista" id="lista"></ul>
     <div class="vacio" id="lista-vacia" hidden>
@@ -337,6 +349,7 @@ textarea:focus { border-color: var(--violeta); outline: none; }
     <h3 id="confirmar-titulo">¿Borrar el punto?</h3>
     <p id="confirmar-texto">Se va a quitar del mapa para todos. No se puede deshacer.</p>
     <p class="cita" id="confirmar-cita"></p>
+    <textarea id="confirmar-nota" maxlength="500" placeholder="Nota opcional. Ej.: limpió la cuadrilla municipal" hidden></textarea>
     <div class="pie">
       <button class="btn btn-secundario" type="button" id="confirmar-no">Cancelar</button>
       <button class="btn btn-peligro" type="button" id="confirmar-si">Sí, borrar</button>
@@ -373,6 +386,7 @@ function olvidarClave(id) {
   try { const m = misClaves(); delete m[id]; localStorage.setItem("misPuntos", JSON.stringify(m)); } catch (e) { /* sin almacenamiento */ }
 }
 function puedeBorrar(p) { return Boolean(adminToken || misClaves()[p.id]); }
+const esLimpiado = (p) => p.estado === "limpiado";
 
 let adminToken = null;
 function leerAdmin() {
@@ -467,7 +481,7 @@ function iconoPunto(p, nuevo) {
   const n = String(p.id);
   return L.divIcon({
     className: "",
-    html: `<div class="punto-icono${nuevo ? " nuevo" : ""}"><b${n.length > 2 ? ' class="largo"' : ""}>${n}</b></div>`,
+    html: `<div class="punto-icono${nuevo ? " nuevo" : ""}${esLimpiado(p) ? " limpiado" : ""}"><b${n.length > 2 ? ' class="largo"' : ""}>${n}</b></div>`,
     iconSize: [32, 32], iconAnchor: [16, 38], popupAnchor: [0, -36]
   });
 }
@@ -475,6 +489,12 @@ function iconoPunto(p, nuevo) {
 function chips(p) {
   const cont = document.createElement("span");
   cont.className = "chips";
+  if (esLimpiado(p)) {
+    const e = document.createElement("span");
+    e.className = "chip ok";
+    e.textContent = "Limpiado";
+    cont.append(e);
+  }
   if (p.cauce) {
     const c = document.createElement("span");
     c.className = "chip cauce";
@@ -496,7 +516,7 @@ function contenidoPopup(p) {
   num.className = "popup-num";
   num.textContent = `Punto ${p.id}`;
   div.append(num);
-  if (p.cauce || p.tipo) div.append(chips(p));
+  if (p.cauce || p.tipo || esLimpiado(p)) div.append(chips(p));
   const d = document.createElement("p");
   d.className = "popup-desc" + (p.descripcion ? "" : " vacia");
   d.textContent = p.descripcion || "Sin descripción";
@@ -505,6 +525,15 @@ function contenidoPopup(p) {
   f.className = "popup-fecha";
   f.textContent = "Marcado el " + fecha(p.creado);
   div.append(f);
+  if (esLimpiado(p)) div.append(textoLimpio(p));
+  if (adminToken) {
+    const e = document.createElement("button");
+    e.type = "button";
+    e.className = "popup-estado";
+    e.textContent = esLimpiado(p) ? "Volver a pendiente" : "Marcar como limpiado";
+    e.addEventListener("click", () => pedirEstado(p));
+    div.append(e);
+  }
   if (puedeBorrar(p)) {
     const b = document.createElement("button");
     b.type = "button";
@@ -516,16 +545,35 @@ function contenidoPopup(p) {
   return div;
 }
 
+function textoLimpio(p) {
+  const l = document.createElement("p");
+  l.className = "limpio";
+  l.textContent = "Limpiado el " + fecha(p.limpiado);
+  if (p.nota_limpieza) {
+    const n = document.createElement("span");
+    n.textContent = p.nota_limpieza;
+    l.append(n);
+  }
+  return l;
+}
+
 function dibujarPuntos() {
-  const ids = new Set(puntos.map((p) => p.id));
+  const porId = new Map(puntos.map((p) => [p.id, p]));
   for (const [id, m] of marcadores) {
-    if (!ids.has(id)) { m.remove(); marcadores.delete(id); }
+    const p = porId.get(id);
+    if (!p) { m.remove(); marcadores.delete(id); continue; }
+    if (m.estado !== p.estado) {
+      // Cambió el estado: nuevo color y popup con los datos al día.
+      m.estado = p.estado;
+      m.setIcon(iconoPunto(p, false)).bindPopup(() => contenidoPopup(p));
+    }
   }
   for (const p of puntos) {
     if (marcadores.has(p.id)) continue;
     const m = L.marker([p.lat, p.lng], { icon: iconoPunto(p, p.id === ultimoNuevo), title: `Punto ${p.id}`, zIndexOffset: p.id })
       .bindPopup(() => contenidoPopup(p))
       .addTo(mapa);
+    m.estado = p.estado;
     marcadores.set(p.id, m);
   }
   $("total").textContent = puntos.length;
@@ -536,18 +584,19 @@ function dibujarLista() {
   const ul = $("lista");
   ul.replaceChildren();
   $("lista-vacia").hidden = puntos.length > 0;
-  $("titulo-lista").textContent = `Puntos marcados (${puntos.length})`;
+  const limpios = puntos.filter(esLimpiado).length;
+  $("titulo-lista").textContent = `Puntos marcados (${puntos.length})` + (limpios ? ` · ${limpios} limpiados` : "");
   for (const p of [...puntos].reverse()) {
     const li = document.createElement("li");
     const b = document.createElement("button");
     b.type = "button";
     b.className = "item";
     const n = document.createElement("span");
-    n.className = "n";
+    n.className = "n" + (esLimpiado(p) ? " limpiado" : "");
     n.textContent = p.id;
     const info = document.createElement("span");
     info.className = "info";
-    if (p.cauce || p.tipo) info.append(chips(p));
+    if (p.cauce || p.tipo || esLimpiado(p)) info.append(chips(p));
     const d = document.createElement("p");
     d.className = "d" + (p.descripcion ? "" : " vacia");
     d.textContent = p.descripcion || "Sin descripción";
@@ -555,6 +604,7 @@ function dibujarLista() {
     f.className = "f";
     f.textContent = fecha(p.creado);
     info.append(d, f);
+    if (esLimpiado(p)) info.append(textoLimpio(p));
     const ir = document.createElement("span");
     ir.className = "ir";
     ir.textContent = "Ver";
@@ -566,6 +616,15 @@ function dibujarLista() {
       mapa.once("moveend", () => marcadores.get(p.id)?.openPopup());
     });
     li.append(b);
+    if (adminToken) {
+      const e = document.createElement("button");
+      e.type = "button";
+      e.className = "btn-estado";
+      e.textContent = esLimpiado(p) ? "Reabrir" : "Limpio ✓";
+      e.setAttribute("aria-label", esLimpiado(p) ? `Volver el punto ${p.id} a pendiente` : `Marcar el punto ${p.id} como limpiado`);
+      e.addEventListener("click", () => pedirEstado(p));
+      li.append(e);
+    }
     if (puedeBorrar(p)) {
       const x = document.createElement("button");
       x.type = "button";
@@ -682,49 +741,91 @@ async function guardar(ev) {
   }
 }
 
-let puntoABorrar = null;
+// Ventana de confirmación: la usan borrar y cambiar de estado.
+let accionConfirmar = null;
 let focoAnterior = null;
 
-function pedirBorrar(p) {
-  puntoABorrar = p;
+function abrirConfirmacion(p, { titulo, texto, si, ocupado, peligro, conNota, accion }) {
+  accionConfirmar = { accion, si, ocupado };
   focoAnterior = document.activeElement;
-  $("confirmar-titulo").textContent = `¿Borrar el punto ${p.id}?`;
+  $("confirmar-titulo").textContent = titulo;
+  $("confirmar-texto").textContent = texto;
   const cita = [CAUCES[p.cauce], TIPOS[p.tipo], p.descripcion].filter(Boolean).join(" · ");
   $("confirmar-cita").textContent = cita || "Sin descripción";
+  $("confirmar-nota").value = "";
+  $("confirmar-nota").hidden = !conNota;
+  const boton = $("confirmar-si");
+  boton.textContent = si;
+  boton.className = "btn " + (peligro ? "btn-peligro" : "btn-confirmar-ok");
   $("confirmar-velo").hidden = false;
   $("confirmar-no").focus();
 }
 
 function cerrarConfirmacion() {
   $("confirmar-velo").hidden = true;
-  puntoABorrar = null;
+  accionConfirmar = null;
   focoAnterior?.focus?.();
 }
 
-async function borrarConfirmado() {
-  const p = puntoABorrar;
-  if (!p) return;
+async function confirmado() {
+  const a = accionConfirmar;
+  if (!a) return;
   const boton = $("confirmar-si");
   boton.disabled = true;
-  boton.textContent = "Borrando…";
-  const clave = misClaves()[p.id];
-  const headers = adminToken ? { "X-Admin-Token": adminToken } : {};
-  if (clave) headers["X-Clave-Punto"] = clave;
+  boton.textContent = a.ocupado;
   try {
-    await api(`api/puntos/${p.id}`, { method: "DELETE", headers });
-    olvidarClave(p.id);
-    mapa.closePopup();
-    puntos = puntos.filter((x) => x.id !== p.id);
-    dibujarPuntos();
+    const mensaje = await a.accion($("confirmar-nota").value.trim());
     cerrarConfirmacion();
-    avisar(`Punto ${p.id} borrado`);
+    avisar(mensaje);
   } catch (e) {
     cerrarConfirmacion();
     avisar(e.message, true);
   } finally {
     boton.disabled = false;
-    boton.textContent = "Sí, borrar";
+    boton.textContent = a.si;
   }
+}
+
+function pedirBorrar(p) {
+  abrirConfirmacion(p, {
+    titulo: `¿Borrar el punto ${p.id}?`, texto: "Se va a quitar del mapa para todos. No se puede deshacer.",
+    si: "Sí, borrar", ocupado: "Borrando…", peligro: true,
+    accion: async () => {
+      const clave = misClaves()[p.id];
+      const headers = adminToken ? { "X-Admin-Token": adminToken } : {};
+      if (clave) headers["X-Clave-Punto"] = clave;
+      await api(`api/puntos/${p.id}`, { method: "DELETE", headers });
+      olvidarClave(p.id);
+      mapa.closePopup();
+      puntos = puntos.filter((x) => x.id !== p.id);
+      dibujarPuntos();
+      return `Punto ${p.id} borrado`;
+    }
+  });
+}
+
+function pedirEstado(p) {
+  const limpiar = !esLimpiado(p);
+  abrirConfirmacion(p, limpiar ? {
+    titulo: `¿Marcar el punto ${p.id} como limpiado?`,
+    texto: "Queda en verde en el mapa, con la fecha de hoy. Sigue apareciendo en la lista y en el PDF.",
+    si: "Sí, limpiado", ocupado: "Guardando…", conNota: true
+  } : {
+    titulo: `¿Volver el punto ${p.id} a pendiente?`,
+    texto: "Se quitan la fecha y la nota de limpieza.",
+    si: "Sí, pendiente", ocupado: "Guardando…"
+  });
+  accionConfirmar.accion = async (nota) => {
+    const actualizado = await api(`api/puntos/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": adminToken || "" },
+      body: JSON.stringify({ estado: limpiar ? "limpiado" : "pendiente", nota })
+    });
+    mapa.closePopup();
+    puntos = puntos.map((x) => (x.id === p.id ? actualizado : x));
+    dibujarPuntos();
+    return limpiar ? `Punto ${p.id} marcado como limpiado` : `Punto ${p.id} vuelve a pendiente`;
+  };
 }
 
 // --- PDF para la Municipalidad -----------------------------------------
@@ -773,7 +874,7 @@ function conectarControles() {
   $("btn-cerrar-lista").addEventListener("click", cerrarHojas);
   $("btn-pdf").addEventListener("click", descargarPDF);
   $("confirmar-no").addEventListener("click", cerrarConfirmacion);
-  $("confirmar-si").addEventListener("click", borrarConfirmado);
+  $("confirmar-si").addEventListener("click", confirmado);
   $("confirmar-velo").addEventListener("click", (e) => { if (e.target === e.currentTarget) cerrarConfirmacion(); });
   $("velo").addEventListener("click", cerrarHojas);
   document.addEventListener("keydown", (e) => {

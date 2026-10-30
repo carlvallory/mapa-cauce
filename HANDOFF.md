@@ -1,6 +1,9 @@
 # HANDOFF — Mapa del Cauce
 
-## Estado actual (2026-10-29)
+## Estado actual (2026-10-29) — PROYECTO TERMINADO
+
+Carlos dio el proyecto por terminado el 2026-10-29. Solo queda el uso: los
+referentes cargan puntos y después se envía el PDF a la Municipalidad.
 
 **En producción: https://cauces.muci.org** — instalada, probada y con la base
 vacía, lista para compartir con los referentes.
@@ -21,9 +24,14 @@ vacía, lista para compartir con los referentes.
 - Borrar: quien marcó un punto puede borrarlo desde el mismo teléfono (botón
   "Borrar" en la lista, con ventana de confirmación). El modo administrador
   (`https://cauces.muci.org/#admin=CLAVE`) borra cualquiera.
-- **Pendiente de desplegar** (2026-10-29): el botón "Borrar" para quien marcó
-  el punto. Requiere `git pull` **y** `systemctl restart mapa-cauce`, porque
-  cambia `server.py` y la base suma la columna `clave_hash` al arrancar.
+- Estados (2026-10-30, **pendiente de desplegar**): cada punto está
+  "pendiente" o "limpiado". Solo el modo administrador lo cambia ("Limpio ✓" /
+  "Reabrir" en la lista), con nota opcional; queda la fecha. Los limpiados se
+  ven en verde para todos y salen en el PDF, CSV y GeoJSON. Para desplegar:
+  `git pull` **y** `systemctl restart mapa-cauce` (cambia `server.py`; la base
+  suma las columnas `estado`, `limpiado` y `nota_limpieza` al arrancar).
+- Los puntos marcados antes del 2026-10-29 ~18 h (antes del botón "Borrar") no
+  tienen clave: solo se borran en modo administrador.
 - Para empezar de cero (y que la numeración vuelva a 1): parar el servicio,
   borrar `puntos.db*` en `/var/lib/mapa-cauce/` y arrancarlo.
 
@@ -35,10 +43,11 @@ marcan los puntos críticos prioritarios y el mapa se envía a la Municipalidad.
 
 ## Qué sigue
 
+0. Commitear, subir a GitHub y desplegar los estados (ver arriba).
 1. Compartir el enlace con los referentes para que carguen los puntos.
 2. Cuando terminen, descargar el PDF desde "Ver puntos" y enviarlo a la
    Municipalidad.
 
 ## Ideas no pedidas (solo si las piden)
 
-- Campo de prioridad, fotos por punto, o marcar puntos como "limpiado".
+- Campo de prioridad o fotos por punto.

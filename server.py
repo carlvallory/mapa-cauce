@@ -41,6 +41,8 @@ TIPOS = {"", "basura", "construccion", "vegetacion", "otro"}
 NOMBRES_TIPO = {"": "", "basura": "Basura", "construccion": "Restos de obra",
                 "vegetacion": "Ramas o vegetación", "otro": "Otro"}
 CAUCES = {"": "", "peru": "Cauce Perú", "antequera": "Cauce Antequera"}
+ESTADOS = {"pendiente": "Pendiente", "limpiado": "Limpiado"}
+COLUMNAS = "id, lat, lng, cauce, tipo, descripcion, creado, estado, limpiado, nota_limpieza"
 CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
                  ".js": "application/javascript; charset=utf-8", ".png": "image/png",
                  ".svg": "image/svg+xml", ".ico": "image/x-icon",
@@ -77,6 +79,11 @@ def iniciar_db():
         if "clave_hash" not in columnas:
             # Hash de la clave que recibe quien marcó el punto, para que pueda borrarlo.
             con.execute("ALTER TABLE puntos ADD COLUMN clave_hash TEXT NOT NULL DEFAULT ''")
+        if "estado" not in columnas:
+            # Solo administración pasa un punto a "limpiado"; queda la fecha y una nota opcional.
+            con.execute("ALTER TABLE puntos ADD COLUMN estado TEXT NOT NULL DEFAULT 'pendiente'")
+            con.execute("ALTER TABLE puntos ADD COLUMN limpiado TEXT NOT NULL DEFAULT ''")
+            con.execute("ALTER TABLE puntos ADD COLUMN nota_limpieza TEXT NOT NULL DEFAULT ''")
 
 
 def hash_clave(clave):
@@ -89,13 +96,15 @@ def celda_segura(texto):
 
 
 def fecha_local(iso):
+    if not iso:
+        return ""
     utc = datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
     return utc.astimezone(ZONA).strftime("%Y-%m-%d %H:%M")
 
 
 def listar_puntos():
     with conectar() as con:
-        filas = con.execute("SELECT id, lat, lng, cauce, tipo, descripcion, creado FROM puntos ORDER BY id").fetchall()
+        filas = con.execute(f"SELECT {COLUMNAS} FROM puntos ORDER BY id").fetchall()
     return [dict(f) for f in filas]
 
 
@@ -181,17 +190,21 @@ class Handler(BaseHTTPRequestHandler):
         salida = io.StringIO()
         salida.write("﻿")  # BOM para que Excel respete los acentos
         w = csv.writer(salida)
-        w.writerow(["numero", "latitud", "longitud", "cauce", "tipo", "descripcion", "fecha", "google_maps"])
+        w.writerow(["numero", "latitud", "longitud", "cauce", "tipo", "descripcion", "fecha", "estado",
+                    "fecha_limpieza", "nota_limpieza", "google_maps"])
         for p in listar_puntos():
             w.writerow([p["id"], p["lat"], p["lng"], CAUCES.get(p["cauce"], p["cauce"]), NOMBRES_TIPO.get(p["tipo"], p["tipo"]), celda_segura(p["descripcion"]),
-                        fecha_local(p["creado"]), f"https://www.google.com/maps?q={p['lat']},{p['lng']}"])
+                        fecha_local(p["creado"]), ESTADOS.get(p["estado"], p["estado"]), fecha_local(p["limpiado"]),
+                        celda_segura(p["nota_limpieza"]), f"https://www.google.com/maps?q={p['lat']},{p['lng']}"])
         return salida.getvalue()
 
     def geojson(self):
         return {"type": "FeatureCollection", "features": [
             {"type": "Feature", "geometry": {"type": "Point", "coordinates": [p["lng"], p["lat"]]},
              "properties": {"numero": p["id"], "cauce": CAUCES.get(p["cauce"], p["cauce"]), "tipo": NOMBRES_TIPO.get(p["tipo"], p["tipo"]),
-                            "descripcion": p["descripcion"], "fecha_utc": p["creado"]}}
+                            "descripcion": p["descripcion"], "fecha_utc": p["creado"],
+                            "estado": ESTADOS.get(p["estado"], p["estado"]), "limpiado_utc": p["limpiado"],
+                            "nota_limpieza": p["nota_limpieza"]}}
             for p in listar_puntos()]}
 
     def estatico(self, ruta):
@@ -237,10 +250,43 @@ class Handler(BaseHTTPRequestHandler):
                               "VALUES (?, ?, ?, ?, ?, ?, ?)",
                               (round(lat, 7), round(lng, 7), cauce, tipo, descripcion[:MAX_DESC], creado,
                                hash_clave(clave)))
-            nuevo = dict(con.execute("SELECT id, lat, lng, cauce, tipo, descripcion, creado FROM puntos WHERE id = ?",
+            nuevo = dict(con.execute(f"SELECT {COLUMNAS} FROM puntos WHERE id = ?",
                                      (cur.lastrowid,)).fetchone())
         nuevo["clave"] = clave
         self.enviar(201, nuevo)
+
+    # --- PATCH: solo administración cambia el estado (pendiente / limpiado) --
+
+    def do_PATCH(self):
+        partes = urlparse(self.path).path.strip("/").split("/")
+        if len(partes) != 3 or partes[:2] != ["api", "puntos"] or not partes[2].isdigit():
+            return self.error(404, "No encontrado")
+        id_punto = int(partes[2])
+        token = self.headers.get("X-Admin-Token", "")
+        if not (ADMIN_TOKEN and hmac.compare_digest(token, ADMIN_TOKEN)):
+            return self.error(403, "Solo la administración puede cambiar el estado de un punto.")
+        largo = int(self.headers.get("Content-Length") or 0)
+        if largo <= 0 or largo > 4096:
+            return self.error(413, "El pedido es demasiado grande.")
+        try:
+            datos = json.loads(self.rfile.read(largo))
+            estado = str(datos["estado"])
+            nota = str(datos.get("nota") or "").strip()[:MAX_DESC]
+        except (ValueError, KeyError, TypeError, AttributeError):
+            return self.error(400, "Falta el estado del punto.")
+        if estado not in ESTADOS:
+            return self.error(400, "El estado no es válido.")
+        if estado == "limpiado":
+            limpiado = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        else:
+            limpiado, nota = "", ""
+        with conectar() as con:
+            cur = con.execute("UPDATE puntos SET estado = ?, limpiado = ?, nota_limpieza = ? WHERE id = ?",
+                              (estado, limpiado, nota, id_punto))
+            if not cur.rowcount:
+                return self.error(404, "Ese punto ya no existe.")
+            punto = dict(con.execute(f"SELECT {COLUMNAS} FROM puntos WHERE id = ?", (id_punto,)).fetchone())
+        self.enviar(200, punto)
 
     # --- DELETE: quien marcó el punto (con su clave) o administración --------
 

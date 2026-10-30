@@ -135,3 +135,29 @@
   administración) y en el navegador (botón solo en el punto propio, Cancelar no
   borra, "Sí, borrar" borra, modo admin muestra el botón en todos).
 - Pendiente: subir a GitHub y desplegar (`git pull` + reinicio del servicio).
+- Desplegado (git pull + restart) y confirmado por Carlos: un punto nuevo
+  muestra "Borrar". El punto 1, cargado antes, no tiene clave y solo se borra
+  en modo administrador, como se esperaba.
+
+## 2026-10-29 — Proyecto terminado
+
+- Carlos dio el proyecto por terminado. La web queda en producción en
+  https://cauces.muci.org, con el código en
+  https://github.com/carlvallory/mapa-cauce.
+
+## 2026-10-30 — Estados "pendiente" y "limpiado" (solo administración)
+
+- Pedido de Carlos: poder dar por resuelto un punto cuando el municipio limpia,
+  sin borrarlo. Dos estados; solo el enlace de administración los cambia.
+- Servidor: columnas `estado`, `limpiado` (fecha UTC) y `nota_limpieza`
+  (migración automática) y `PATCH /api/puntos/<id>` con `X-Admin-Token`. CSV y
+  GeoJSON suman estado, fecha y nota de limpieza.
+- Página: pin y número en verde, etiqueta "Limpiado" con fecha y nota en popup
+  y lista; en modo admin, "Limpio ✓" / "Reabrir" con ventana de confirmación
+  (la misma de borrar, generalizada) y nota opcional.
+- PDF: pines verdes, conteo de pendientes y limpiados, columna "Estado" y la
+  nota de limpieza bajo la descripción.
+- Probado en local con una base vieja (migración), API (sin token, token falso,
+  estado inválido, punto inexistente, limpiar, reabrir), navegador en modo
+  admin y sin admin (sin botones), y PDF generado y revisado.
+- Pendiente: commit, subir a GitHub y desplegar.

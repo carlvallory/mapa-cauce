@@ -27,6 +27,7 @@ planilla CSV y el GeoJSON.
 | GET | `/api/config` | Centro y radio del área |
 | GET | `/api/puntos` | Lista de puntos (JSON) |
 | POST | `/api/puntos` | Crea un punto `{lat, lng, cauce?, tipo?, descripcion?}` (`cauce`: `peru` / `antequera`); responde con una `clave` para poder borrarlo |
+| PATCH | `/api/puntos/<id>` | Cambia el estado `{estado: "pendiente" \| "limpiado", nota?}` (solo con `X-Admin-Token`) |
 | DELETE | `/api/puntos/<id>` | Borra un punto (header `X-Clave-Punto` de quien lo marcó, o `X-Admin-Token`) |
 | GET | `/api/puntos.csv` | Planilla para Excel, con hora de Paraguay y enlace a Google Maps |
 | GET | `/api/puntos.geojson` | Los puntos en GeoJSON (QGIS, Google My Maps, etc.) |
@@ -40,7 +41,7 @@ conexión y corta las descripciones en 500 caracteres. No guarda IPs.
 |---|---|---|
 | `CENTRO_LAT`, `CENTRO_LNG` | `-25.277576`, `-57.619978` | Centro de la obra |
 | `RADIO_M` | `750` | Radio en metros |
-| `ADMIN_TOKEN` | vacío (nadie puede borrar) | Clave para borrar puntos |
+| `ADMIN_TOKEN` | vacío (nadie puede borrar ni marcar limpiados) | Clave de administración: borrar puntos y marcarlos como limpiados |
 | `DB_PATH` | `./puntos.db` | Archivo SQLite |
 | `HOST`, `PORT` | `127.0.0.1`, `8080` | Dónde escucha |
 | `ZONA_HORARIA` | `America/Asuncion` | Hora de la planilla CSV |
@@ -105,6 +106,18 @@ cd /var/www/areas/global/mapa-cauce && git pull && systemctl restart mapa-cauce
   `https://cauces.muci.org/#admin=LA_CLAVE` (la clave está en `.env`). Va
   después de `#` a propósito: esa parte de la dirección no viaja al servidor,
   así que la clave no queda en ningún log.
+
+## Puntos limpiados
+
+Cada punto está **pendiente** o **limpiado**. Solo la administración cambia el
+estado: en modo administrador aparece "Limpio ✓" en la lista ("Marcar como
+limpiado" en el popup), con una ventana que pide confirmar y admite una nota
+opcional (por ejemplo, quién limpió). Queda guardada la fecha. "Reabrir" lo
+vuelve a pendiente y borra la fecha y la nota.
+
+Los puntos limpiados siguen a la vista de todos, en verde, en el mapa, la
+lista, el PDF (con columna "Estado" y el conteo de pendientes y limpiados), la
+planilla CSV y el GeoJSON. Borrar sigue siendo para errores o duplicados.
 
 ## Numeración
 

@@ -116,7 +116,7 @@
     // Puntos: los de número más alto encima, igual que en la web.
     for (const p of [...puntos].sort((a, b) => a.id - b.id)) {
       const { x, y } = aPx(p.lat, p.lng);
-      pin(ctx, x, y, String(p.id));
+      pin(ctx, x, y, String(p.id), p.estado === "limpiado" ? COLOR.verde : COLOR.naranja);
     }
 
     escalaYNorte(ctx, LADO, metrosPorPx);
@@ -140,7 +140,7 @@
     ctx.fillText(texto, x, y + 1);
   }
 
-  function pin(ctx, x, y, numero) {
+  function pin(ctx, x, y, numero, color) {
     const r = 19, cy = y - r * 1.9;
     const a = Math.acos(r / (y - cy));
     ctx.beginPath();
@@ -150,7 +150,7 @@
     ctx.shadowColor = "rgba(0,0,0,.35)";
     ctx.shadowBlur = 6;
     ctx.shadowOffsetY = 2;
-    ctx.fillStyle = rgb(COLOR.naranja);
+    ctx.fillStyle = rgb(color);
     ctx.fill();
     ctx.shadowColor = "transparent";
     ctx.lineWidth = 3;
@@ -271,20 +271,22 @@
 
     // Resumen
     const cuenta = (c) => ordenados.filter((p) => p.cauce === c).length;
+    const limpios = ordenados.filter((p) => p.estado === "limpiado").length;
     const resumen = [
-      [String(ordenados.length), "puntos marcados"],
-      [String(cuenta("peru")), "cauce Perú"],
-      [String(cuenta("antequera")), "cauce Antequera"],
-      [String(cuenta("")), "sin cauce indicado"]
+      [String(ordenados.length - limpios), "pendientes", COLOR.naranja],
+      [String(limpios), "limpiados", COLOR.verde],
+      [String(cuenta("peru")), "cauce Perú", COLOR.violeta],
+      [String(cuenta("antequera")), "cauce Antequera", COLOR.violeta],
+      [String(cuenta("")), "sin cauce indicado", COLOR.violeta]
     ];
-    const anchoCaja = (W - 2 * M - 3 * 4) / 4;
-    resumen.forEach(([n, txt], i) => {
+    const anchoCaja = (W - 2 * M - (resumen.length - 1) * 4) / resumen.length;
+    resumen.forEach(([n, txt, color], i) => {
       const x = M + i * (anchoCaja + 4);
       doc.setFillColor(...COLOR.tinte);
       doc.roundedRect(x, 40, anchoCaja, 17, 2.5, 2.5, "F");
       doc.setFont("Poppins", "bold");
       doc.setFontSize(15);
-      doc.setTextColor(...(i === 0 ? COLOR.naranja : COLOR.violeta));
+      doc.setTextColor(...color);
       doc.text(n, x + 4, 49);
       doc.setFont("Poppins", "normal");
       doc.setFontSize(7.5);
@@ -304,7 +306,7 @@
     doc.setFontSize(8);
     doc.setTextColor(...COLOR.suave);
     const pie = `Círculo: radio de ${Math.round(cfg.radio)} m alrededor de la obra del MuCi (centro ${cfg.centro.lat.toFixed(5)}, ${cfg.centro.lng.toFixed(5)}). ` +
-      "Cada número corresponde a una fila de la tabla de las páginas siguientes.";
+      "Naranja: pendiente de limpieza. Verde: ya limpiado. Cada número corresponde a una fila de la tabla de las páginas siguientes.";
     doc.text(doc.splitTextToSize(pie, lado), M, 62 + lado + 5);
 
     // Tabla
@@ -323,26 +325,33 @@
       String(p.id),
       (cauces[p.cauce] || "—").replace(/^Cauce /, ""),
       tipos[p.tipo] || "—",
-      p.descripcion || "Sin descripción",
+      (p.descripcion || "Sin descripción") + (p.nota_limpieza ? `\nLimpieza: ${p.nota_limpieza}` : ""),
       `${p.lat.toFixed(5)}\n${p.lng.toFixed(5)}`,
-      fechaCorta(p.creado)
+      fechaCorta(p.creado),
+      p.estado === "limpiado" ? `Limpiado\n${fechaCorta(p.limpiado)}` : "Pendiente"
     ]);
 
     doc.autoTable({
       startY: 26,
       margin: { left: M, right: M, bottom: 18 },
-      head: [["N°", "Cauce", "Tipo", "Descripción", "Ubicación", "Fecha"]],
-      body: filas.length ? filas : [["", "", "", "Todavía no hay puntos marcados.", "", ""]],
+      head: [["N°", "Cauce", "Tipo", "Descripción", "Ubicación", "Fecha", "Estado"]],
+      body: filas.length ? filas : [["", "", "", "Todavía no hay puntos marcados.", "", "", ""]],
       styles: { font: "Poppins", fontStyle: "normal", fontSize: 8.5, cellPadding: 2.2, textColor: COLOR.negro, lineColor: [231, 226, 239], lineWidth: 0.2, valign: "top" },
       headStyles: { font: "Poppins", fontStyle: "bold", fillColor: COLOR.violeta, textColor: [255, 255, 255], fontSize: 8.5 },
       alternateRowStyles: { fillColor: COLOR.tinte },
       columnStyles: {
         0: { cellWidth: 11, halign: "center", fontStyle: "bold", textColor: COLOR.naranja, fontSize: 10 },
-        1: { cellWidth: 24 },
-        2: { cellWidth: 24 },
+        1: { cellWidth: 21 },
+        2: { cellWidth: 22 },
         3: { cellWidth: "auto" },
-        4: { cellWidth: 22, textColor: COLOR.violeta, fontSize: 7.5 },
-        5: { cellWidth: 22, fontSize: 7.5, textColor: COLOR.suave }
+        4: { cellWidth: 21, textColor: COLOR.violeta, fontSize: 7.5 },
+        5: { cellWidth: 21, fontSize: 7.5, textColor: COLOR.suave },
+        6: { cellWidth: 22, fontSize: 7.5, fontStyle: "bold" }
+      },
+      didParseCell: (d) => {
+        if (d.section === "body" && d.column.index === 6 && ordenados[d.row.index]) {
+          d.cell.styles.textColor = ordenados[d.row.index].estado === "limpiado" ? [0, 122, 73] : COLOR.naranja;
+        }
       },
       didDrawCell: (d) => {
         if (d.section === "body" && d.column.index === 4 && ordenados[d.row.index]) {
